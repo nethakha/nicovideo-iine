@@ -151,15 +151,13 @@ function createButton(text, className, videoId) {
       });
 
       // 新しい評価を保存
-      await new Promise((resolve, reject) => {
+      await new Promise(resolve => {
         chrome.storage.local.set({
           [`${videoId}_${className}_active`]: true
         }, () => {
-          if (chrome.runtime.lastError) {
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
+          // 評価更新を通知
+          chrome.runtime.sendMessage({ type: 'ratingUpdated' });
+          resolve();
         });
       });
 

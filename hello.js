@@ -348,4 +348,18 @@ chrome.storage.local.get(null, (result) => {
 
   // 初期表示
   displayVideos(Object.entries(videoData));
+
+  // 評価更新メッセージを受信したら更新
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === 'ratingUpdated') {
+      // 現在のスクロール位置を保存
+      const scrollPosition = window.scrollY;
+      
+      // ページを再読み込み
+      location.reload();
+
+      // スクロール位置を復元
+      window.scrollTo(0, scrollPosition);
+    }
+  });
 }); 
