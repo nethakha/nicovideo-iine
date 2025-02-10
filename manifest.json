@@ -1,0 +1,28 @@
+{
+  "manifest_version": 3,
+  "name": "ニコニコ動画 いいねボタン",
+  "version": "1.0",
+  "description": "ニコニコ動画に「好き」「大好き」ボタンを追加します",
+  "permissions": [
+    "storage",
+    "scripting"
+  ],
+  "host_permissions": [
+    "https://www.nicovideo.jp/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://www.nicovideo.jp/watch/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"]
+    }
+  ],
+  "web_accessible_resources": [{
+    "resources": ["hello.html"],
+    "matches": ["*://www.nicovideo.jp/*"]
+  }],
+  "action": {}
+} 
