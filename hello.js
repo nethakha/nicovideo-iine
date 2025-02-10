@@ -12,6 +12,9 @@ chrome.storage.local.get(null, (result) => {
   // 評価変更の履歴を保持する配列
   let undoHistory = [];
 
+  // 削除されたNo.をストレージから読み込む
+  let deletedNumbers = result.deletedNumbers || [];
+
   // 元に戻すボタンを作成（グローバルに1つだけ）
   const undoButton = document.createElement('button');
   undoButton.className = 'undo-button';
@@ -27,6 +30,17 @@ chrome.storage.local.get(null, (result) => {
       await new Promise(resolve => {
         chrome.storage.local.set(lastAction.state, resolve);
       });
+      
+      // 削除されたNo.を復元
+      if (lastAction.deletedNumbers) {
+        deletedNumbers = deletedNumbers.filter(n => 
+          !lastAction.deletedNumbers.includes(n)
+        );
+        // 更新されたdeletedNumbersをストレージに保存
+        await new Promise(resolve => {
+          chrome.storage.local.set({ deletedNumbers }, resolve);
+        });
+      }
       
       // 履歴が空になったらボタンを非表示
       if (undoHistory.length === 0) {
@@ -46,6 +60,7 @@ chrome.storage.local.get(null, (result) => {
         // 最初の動画かどうかを確認
         const existingNumbers = Object.values(result)
           .filter(v => typeof v === 'number')
+          .filter(n => !deletedNumbers.includes(n)) // 削除されたNo.を除外
           .map(v => parseInt(v));
         const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
         
@@ -62,28 +77,21 @@ chrome.storage.local.get(null, (result) => {
           number: result[`${videoId}_number`] || maxNumber + 1
         };
 
-        // No.が未設定の場合はストレージに保存
+        // No.が未設定の場合のみストレージに保存
         if (!result[`${videoId}_number`]) {
           chrome.storage.local.set({
-            [`${videoId}_number`]: maxNumber + 1
+            [`${videoId}_number`]: maxNumber + 1,
+            [`${videoId}_addedAt`]: videoData[videoId].addedAt
           });
         }
       }
       if (value) {
         videoData[videoId][type] = true;
-        // 追加日時とNo.が未設定の場合は設定
-        if (!result[`${videoId}_addedAt`] || !result[`${videoId}_number`]) {
-          // 現在の最大No.を取得
-          const numbers = Object.values(result)
-            .filter(v => typeof v === 'number')
-            .map(v => parseInt(v));
-          const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
-          
+        // 追加日時のみ未設定の場合は設定
+        if (!result[`${videoId}_addedAt`]) {
           chrome.storage.local.set({
-            [`${videoId}_addedAt`]: new Date().toISOString(),
-            [`${videoId}_number`]: maxNumber + 1  // 最大No.の次の番号を割り当て
+            [`${videoId}_addedAt`]: new Date().toISOString()
           });
-          videoData[videoId].number = maxNumber + 1;
         }
       }
     }
@@ -438,33 +446,44 @@ chrome.storage.local.get(null, (result) => {
       chrome.storage.local.get(null, (data) => {
         lastBackup = data;
         
-        // データを削除
-        chrome.storage.local.clear(() => {
-          // 一覧をクリア
-          const videoList = document.getElementById('videoList');
-          videoList.innerHTML = '';
-          
-          // 元に戻すボタンを表示
-          // 既存の元に戻すボタンを削除
-          const existingRestoreButton = document.querySelector('.restore-button');
-          if (existingRestoreButton) {
-            existingRestoreButton.remove();
-          }
-          
-          const restoreButton = document.createElement('button');
-          restoreButton.className = 'restore-button';
-          restoreButton.textContent = '元に戻す';
-          restoreButton.addEventListener('click', () => {
-            if (lastBackup) {
-              chrome.storage.local.set(lastBackup, () => {
-                // データを再表示
-                location.reload();
-              });
+        // 現在のNo.をdeletedNumbersに追加
+        const currentNumbers = Object.entries(data)
+          .filter(([key]) => key.endsWith('_number'))
+          .map(([, value]) => value);
+        
+        deletedNumbers.push(...currentNumbers);
+        
+        // データを削除（deletedNumbersは維持）
+        const keysToRemove = Object.keys(data).filter(key => key !== 'deletedNumbers');
+        chrome.storage.local.remove(keysToRemove, () => {
+          // deletedNumbersを保存
+          chrome.storage.local.set({ deletedNumbers }, () => {
+            // 一覧をクリア
+            const videoList = document.getElementById('videoList');
+            videoList.innerHTML = '';
+            
+            // 元に戻すボタンを表示
+            // 既存の元に戻すボタンを削除
+            const existingRestoreButton = document.querySelector('.restore-button');
+            if (existingRestoreButton) {
+              existingRestoreButton.remove();
             }
+            
+            const restoreButton = document.createElement('button');
+            restoreButton.className = 'restore-button';
+            restoreButton.textContent = '元に戻す';
+            restoreButton.addEventListener('click', () => {
+              if (lastBackup) {
+                chrome.storage.local.set(lastBackup, () => {
+                  // データを再表示
+                  location.reload();
+                });
+              }
+            });
+            
+            // 元に戻すボタンを追加
+            document.querySelector('.button-group').appendChild(restoreButton);
           });
-          
-          // 元に戻すボタンを追加
-          document.querySelector('.button-group').appendChild(restoreButton);
         });
       });
     }
@@ -497,21 +516,34 @@ chrome.storage.local.get(null, (result) => {
 
       // 選択された項目のデータを収集
       const keysToRemove = [];
+      const numbersToDelete = [];
       selectedRows.forEach(row => {
         const videoId = row.getAttribute('data-video-id');
         Object.keys(currentState).forEach(key => {
           if (key.startsWith(videoId)) {
             keysToRemove.push(key);
+            if (key === `${videoId}_number`) {
+              numbersToDelete.push(currentState[key]);
+            }
           }
         });
       });
 
-      // 履歴に保存
+      // 削除されたNo.を保存（ローカル変数とストレージの両方）
+      deletedNumbers.push(...numbersToDelete);
+      await new Promise(resolve => {
+        chrome.storage.local.set({ deletedNumbers }, resolve);
+      });
+
+      // 履歴に保存（削除されたNo.も含める）
       const relevantState = keysToRemove.reduce((obj, key) => {
         obj[key] = currentState[key];
         return obj;
       }, {});
-      undoHistory.push({ state: relevantState });
+      undoHistory.push({ 
+        state: relevantState,
+        deletedNumbers: numbersToDelete
+      });
 
       // 選択された項目を削除
       await new Promise(resolve => {
