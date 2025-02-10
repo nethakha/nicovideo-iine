@@ -301,22 +301,50 @@ chrome.storage.local.get(null, (result) => {
 
   // 検索機能を追加
   const userSearch = document.getElementById('userSearch');
-  userSearch.addEventListener('input', () => {
-    const searchTerm = userSearch.value.toLowerCase();
-    const sortedVideos = Object.entries(videoData);
+  const tagSearch = document.getElementById('tagSearch');
+
+  function filterVideos() {
+    const userSearchTerm = userSearch.value.toLowerCase();
+    const tagSearchTerm = tagSearch.value.toLowerCase();
+    const videoList = document.getElementById('videoList');
+    const rows = videoList.children;
     
-    // 検索条件に基づいてフィルタリング
-    const filteredVideos = searchTerm 
-      ? sortedVideos.filter(([_, data]) => data.user.toLowerCase().includes(searchTerm))
-      : sortedVideos;
+    // 各行を検索条件でフィルタリング
+    Array.from(rows).forEach(row => {
+      const userCell = row.querySelector('.user-name a');
+      const tagsCell = row.querySelector('.video-tags');
+      
+      // ユーザー名での検索
+      const matchesUser = userSearchTerm ? 
+        userCell.textContent.toLowerCase().includes(userSearchTerm) : true;
 
-    // 現在のソート条件を適用して表示
-    const sortedAndFiltered = currentSort.column
-      ? sortVideos(Object.fromEntries(filteredVideos), currentSort.column, currentSort.direction)
-      : filteredVideos;
+      // タグでの検索
+      let matchesTags = true;
+      if (tagSearchTerm) {
+        const tagElements = tagsCell.querySelectorAll('a');
+        const tags = Array.from(tagElements).map(tag => tag.textContent.toLowerCase());
+        const searchTerms = tagSearchTerm.split(/\s+/);
+        
+        matchesTags = searchTerms.every(term => {
+          if (term.startsWith('-')) {
+            // マイナス検索
+            const excludeTag = term.slice(1);
+            return !tags.some(tag => tag.includes(excludeTag));
+          } else {
+            // 通常検索
+            return tags.some(tag => tag.includes(term));
+          }
+        });
+      }
 
-    displayVideos(sortedAndFiltered);
-  });
+      // 表示/非表示を設定
+      row.style.display = matchesUser && matchesTags ? '' : 'none';
+    });
+  }
+
+  // 検索イベントリスナーを設定
+  userSearch.addEventListener('input', filterVideos);
+  tagSearch.addEventListener('input', filterVideos);
 
   // 初期表示
   displayVideos(Object.entries(videoData));
