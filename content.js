@@ -65,8 +65,9 @@ function createLikeButtons() {
     const dateElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time");
     const tagArea = document.querySelector("[data-anchor-area=tags]");
     const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
+    const userElement = document.querySelector("[data-anchor-area=video_information]:nth-child(2)");
 
-    if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement) {
+    if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement && userElement) {
       const videoTitle = titleElement.textContent.trim();
       const viewCount = viewCountElement.textContent.trim();
       const uploadDate = dateElement.textContent.trim();
@@ -75,16 +76,28 @@ function createLikeButtons() {
         .filter(it => !!it)
         .join(', ');
       const thumbnail = thumbnailElement.href;
+      
+      // ユーザー名を取得
+      let userName = '不明';
+      try {
+        const userLink = userElement?.querySelector('a');
+        if (userLink && userLink.textContent) {
+          userName = userLink.textContent.trim();
+        }
+      } catch (error) {
+        console.error('ユーザー名の取得に失敗:', error);
+      }
 
       chrome.storage.local.set({
         [`${videoId}_title`]: videoTitle,
         [`${videoId}_views`]: viewCount,
         [`${videoId}_date`]: uploadDate,
         [`${videoId}_tags`]: tags,
-        [`${videoId}_thumbnail`]: thumbnail
+        [`${videoId}_thumbnail`]: thumbnail,
+        [`${videoId}_user`]: userName
       });
     } else {
-      setTimeout(saveVideoInfo, 1000);
+      setTimeout(saveVideoInfo, 1500);
     }
   };
 
@@ -107,14 +120,27 @@ function createButton(text, className, videoId) {
         ], resolve);
       });
 
+      // タイトル、再生数、投稿日時を確認
       const title = result[`${videoId}_title`] || '';
       const views = result[`${videoId}_views`] || '不明';
       const date = result[`${videoId}_date`] || '不明';
 
-      // 評価できない条件をチェック
-      if (title.startsWith('sm') || views === '不明' || date === '不明') {
+      // 評価できない条件をチェック（評価が削除された場合は除外）
+      if ((title.startsWith('sm') || views === '不明' || date === '不明') && 
+          Object.keys(result).length > 0) {  // 情報が存在する場合のみチェック
         throw new Error('必要な情報が取得できません');
       }
+
+      // 現在の評価状態を確認（新しい評価を保存する前にチェック）
+      const wasRated = await new Promise(resolve => {
+        chrome.storage.local.get([
+          `${videoId}_hold_active`,
+          `${videoId}_like_active`,
+          `${videoId}_super-like_active`
+        ], result => {
+          resolve(Object.values(result).some(value => value === true));
+        });
+      });
 
       // 他の評価をすべて削除
       const keysToRemove = ['hold', 'like', 'super-like'].map(type => 
@@ -144,8 +170,9 @@ function createButton(text, className, videoId) {
         const dateElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time");
         const tagArea = document.querySelector("[data-anchor-area=tags]");
         const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
+        const userElement = document.querySelector('[data-anchor-area="video_information"]:nth-child(2)');
 
-        if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement) {
+        if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement && userElement) {
           const videoTitle = titleElement.textContent.trim();
           const viewCount = viewCountElement.textContent.trim();
           const uploadDate = dateElement.textContent.trim();
@@ -154,13 +181,17 @@ function createButton(text, className, videoId) {
             .filter(it => !!it)
             .join(', ');
           const thumbnail = thumbnailElement.href;
+          
+          // ユーザー名を取得
+          let userName = userElement.textContent.trim();
 
           chrome.storage.local.set({
             [`${videoId}_title`]: videoTitle,
             [`${videoId}_views`]: viewCount,
             [`${videoId}_date`]: uploadDate,
             [`${videoId}_tags`]: tags,
-            [`${videoId}_thumbnail`]: thumbnail
+            [`${videoId}_thumbnail`]: thumbnail,
+            [`${videoId}_user`]: userName
           });
         }
       };
@@ -183,6 +214,20 @@ function createButton(text, className, videoId) {
         const buttonsGroup = document.querySelector('.buttons-group');
         buttonsContainer.insertBefore(ratedBadge, buttonsGroup);
       }
+
+      // 評価完了通知を表示
+      const notification = document.createElement('div');
+      notification.className = 'rating-notification';
+      if (wasRated) {
+        notification.classList.add('update');
+      }
+      notification.textContent = wasRated ? '評価を更新しました' : '評価しました';
+      document.body.appendChild(notification);
+
+      // アニメーション終了後に要素を削除
+      setTimeout(() => {
+        notification.remove();
+      }, 1500);
 
     } catch (error) {
       alert('評価に失敗しました。ページをリロードして再度評価してください。');

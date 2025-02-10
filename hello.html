@@ -25,11 +25,15 @@
       justify-content: space-between;
       align-items: center;
       margin-bottom: 20px;
+      gap: 20px;
+    }
+    .left-container {
+      flex-shrink: 0;
     }
     h1 {
       font-size: 32px;
       color: #2c3e50;
-      margin-bottom: 30px;
+      margin: 0;
       padding-bottom: 15px;
       border-bottom: 3px solid #3498db;
     }
@@ -38,7 +42,7 @@
       margin-top: 20px;
       font-size: 16px;
       display: grid;
-      grid-template-columns: 120px 30% 10% 12% 30% 8%;
+      grid-template-columns: 120px 25% 15% 10% 12% 18% 10%;
     }
     .header {
       display: contents;
@@ -209,38 +213,6 @@
     .cell.thumbnail img:hover {
       transform: scale(1.05);
     }
-    /* 削除ボタンのスタイル */
-    .delete-button {
-      background-color: #e74c3c;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      padding: 8px 16px;
-      cursor: pointer;
-      font-size: 1.1em;
-      transition: all 0.2s;
-      opacity: 0;
-      position: absolute;
-      left: 100%;
-      margin-left: 0px;
-      top: 50%;
-      transform: translateY(-50%) translateX(-20px);
-      z-index: 2;
-      visibility: hidden;
-      white-space: nowrap;
-    }
-
-    .delete-button:hover {
-      background-color: #c0392b;
-    }
-
-    /* 行にホバーした時に削除ボタンを表示 */
-    .row:hover .delete-button {
-      opacity: 1;
-      transform: translateY(-50%) translateX(0);
-      visibility: visible;
-    }
-
     /* 評価セルの中央寄せ */
     .cell:last-child {
       justify-content: center;
@@ -249,19 +221,19 @@
 
     /* 行のホバー時に評価の文字色を赤に */
     .row:hover .rating-none {
-      color: #c0392b;
+      color: #ffffff;
     }
 
     .row:hover .rating-hold {
-      color: #c0392b;
+      color: #ffffff;
     }
 
     .row:hover .rating-like {
-      color: #c0392b;
+      color: #ffffff;
     }
 
     .row:hover .rating-superlike {
-      color: #c0392b;
+      color: #ffffff;
     }
 
     /* ボタングループのスタイル */
@@ -303,12 +275,193 @@
       background-color: #27ae60;
       transform: scale(1.05);
     }
+
+    .search-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 0 auto 0 20px;  /* 左側にマージンを追加 */
+    }
+
+    .search-container label {
+      color: #2c3e50;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .search-input {
+      padding: 8px 12px;
+      border: 2px solid #3498db;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 200px;
+      transition: all 0.3s;
+    }
+
+    .search-input:focus {
+      outline: none;
+      border-color: #2980b9;
+      box-shadow: 0 0 5px rgba(52, 152, 219, 0.5);
+    }
+
+    .rating-cell {
+      position: relative;
+      cursor: pointer;
+      min-width: 100px;
+      white-space: nowrap;
+    }
+
+    .rating-display {
+      padding: 6px 12px;
+      border-radius: 4px;
+      text-align: center;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: fit-content;
+      margin: 0 auto;
+    }
+
+    .rating-display::after {
+      content: '▼';
+      font-size: 0.8em;
+      opacity: 0.6;
+      transition: transform 0.3s;
+    }
+
+    .rating-cell:hover .rating-display::after {
+      transform: rotate(180deg);
+    }
+
+    .rating-menu {
+      position: absolute;
+      top: calc(100% - 5px);  /* 5px上に移動 */
+      left: 50%;
+      transform: translateX(-50%) translateY(-10px);
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      display: none;
+      z-index: 1000;
+      width: 140px;
+      opacity: 0;
+      transition: all 0.3s ease;
+      padding: 6px;
+    }
+
+    /* メニューとセルの間のギャップを埋める透明な要素を追加 */
+    .rating-menu::before {
+      content: '';
+      position: absolute;
+      top: -10px;  /* ギャップを埋める */
+      left: 0;
+      width: 100%;
+      height: 10px;
+      background: transparent;
+    }
+
+    .rating-cell:hover .rating-menu {
+      display: block;
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .rating-menu-item {
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.95em;
+    }
+
+    .rating-menu-item::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      transition: all 0.2s;
+    }
+
+    .rating-menu-item:hover {
+      background-color: #f5f9ff;
+      transform: translateX(3px);
+    }
+
+    .rating-menu-item:not(:last-child) {
+      margin-bottom: 2px;
+    }
+
+    /* 評価メニューアイテムの色分け */
+    .rating-menu-item[data-type="like"]::before {
+      background-color: #e74c3c;
+    }
+
+    .rating-menu-item[data-type="super-like"]::before {
+      background-color: #c0392b;
+    }
+
+    .rating-menu-item[data-type="hold"]::before {
+      background-color: #7f8c8d;
+    }
+
+    .rating-menu-item[data-type="remove"]::before {
+      background-color: #95a5a6;
+    }
+
+    /* メニューが表示される時のアニメーション */
+    @keyframes menuAppear {
+      from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+      }
+    }
+
+    .undo-button {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: all 0.2s;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+    }
+
+    .undo-button:hover {
+      background-color: #2980b9;
+      transform: scale(1.05);
+    }
+
+    .undo-button:active {
+      transform: scale(0.95);
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="header-container">
-      <h1>ニコニコ動画 評価一覧</h1>
+      <div class="left-container">
+        <h1>ニコニコ動画 評価一覧</h1>
+      </div>
+      <div class="search-container">
+        <label for="userSearch">投稿者名で検索:</label>
+        <input type="text" id="userSearch" class="search-input">
+      </div>
       <div class="button-group">
         <button id="deleteAll" class="delete-all-button">全削除</button>
       </div>
@@ -317,6 +470,7 @@
       <div class="header">
         <div class="header-cell">サムネ</div>
         <div class="header-cell">タイトル</div>
+        <div class="header-cell">投稿者</div>
         <div class="header-cell">再生数</div>
         <div class="header-cell">投稿日時</div>
         <div class="header-cell">タグ</div>

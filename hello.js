@@ -6,6 +6,35 @@ chrome.storage.local.get(null, (result) => {
   // バックアップデータを保持する変数
   let lastBackup = null;
 
+  // 評価変更の履歴を保持する配列
+  let undoHistory = [];
+
+  // 元に戻すボタンを作成（グローバルに1つだけ）
+  const undoButton = document.createElement('button');
+  undoButton.className = 'undo-button';
+  undoButton.textContent = '元に戻す';
+  undoButton.style.display = 'none';
+  document.body.appendChild(undoButton);
+
+  // 元に戻すボタンのクリックイベント
+  undoButton.addEventListener('click', async () => {
+    const lastAction = undoHistory.pop();
+    if (lastAction) {
+      // 状態を復元
+      await new Promise(resolve => {
+        chrome.storage.local.set(lastAction.state, resolve);
+      });
+      
+      // 履歴が空になったらボタンを非表示
+      if (undoHistory.length === 0) {
+        undoButton.style.display = 'none';
+      }
+      
+      // 表示を更新
+      location.reload();
+    }
+  });
+
   // ストレージデータを整理
   Object.entries(result).forEach(([key, value]) => {
     if (key.includes('_active')) {
@@ -18,7 +47,8 @@ chrome.storage.local.get(null, (result) => {
           views: result[`${videoId}_views`] || '不明',
           date: result[`${videoId}_date`] || '不明',
           tags: result[`${videoId}_tags`] || '不明',
-          thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image'
+          thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
+          user: result[`${videoId}_user`] || '不明'
         };
       }
       if (value) {
@@ -53,6 +83,7 @@ chrome.storage.local.get(null, (result) => {
       thumbnailCell.innerHTML = `<img src="${data.thumbnail}" alt="${data.title}" loading="lazy" onerror="this.src='https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image'">`;
 
       const titleCell = document.createElement('div');
+      const userCell = document.createElement('div');
       const viewsCell = document.createElement('div');
       const dateCell = document.createElement('div');
       const tagsCell = document.createElement('div');
@@ -60,6 +91,7 @@ chrome.storage.local.get(null, (result) => {
 
       // 基本クラスを設定
       titleCell.className = 'cell';
+      userCell.className = 'cell user-name';
       viewsCell.className = 'cell views-count';
       dateCell.className = 'cell upload-date';
       tagsCell.className = 'cell video-tags';
@@ -75,39 +107,102 @@ chrome.storage.local.get(null, (result) => {
         .map(tag => `<span><a href="https://www.nicovideo.jp/tag/${encodeURIComponent(tag)}" target="_blank">${tag}</a></span>`)
         .join('');
 
+      // ユーザー名のリンクを設定
+      const userName = data.user || '不明';
+      userCell.innerHTML = `<a href="https://www.nicovideo.jp/user/${encodeURIComponent(userName)}" target="_blank">${userName}</a>`;
+
       // 評価のセル
+      ratingCell.className += ' rating-cell';
+      
+      // 評価表示用の要素
+      const ratingDisplay = document.createElement('div');
+      ratingDisplay.className = 'rating-display';
       if (data.like) {
-        ratingCell.textContent = '好き';
-        ratingCell.className += ' rating-like';
+        ratingDisplay.textContent = '好き';
+        ratingDisplay.className += ' rating-like';
       } else if (data['super-like']) {
-        ratingCell.textContent = '大好き';
-        ratingCell.className += ' rating-superlike';
+        ratingDisplay.textContent = '大好き';
+        ratingDisplay.className += ' rating-superlike';
       } else if (data.hold) {
-        ratingCell.textContent = '保留';
-        ratingCell.className += ' rating-hold';
-      } else {
-        ratingCell.textContent = '無評価';
-        ratingCell.className += ' rating-none';
+        ratingDisplay.textContent = '保留';
+        ratingDisplay.className += ' rating-hold';
       }
 
-      // 削除ボタンを追加
-      const deleteButton = document.createElement('button');
-      deleteButton.textContent = '削除';
-      deleteButton.className = 'delete-button';
-      deleteButton.addEventListener('click', () => {
-        // ストレージから該当の動画情報を削除
-        chrome.storage.local.get(null, (result) => {
-          const keysToRemove = Object.keys(result).filter(key => key.startsWith(videoId));
-          chrome.storage.local.remove(keysToRemove, () => {
+      // プルダウンメニュー
+      const ratingMenu = document.createElement('div');
+      ratingMenu.className = 'rating-menu';
+      
+      const menuItems = [
+        { text: '好き', class: 'like', type: 'like' },
+        { text: '大好き', class: 'super-like', type: 'super-like' },
+        { text: '保留', class: 'hold', type: 'hold' },
+        { text: '評価を削除', class: 'remove', type: 'remove' }
+      ];
+
+      menuItems.forEach(item => {
+        const menuItem = document.createElement('div');
+        menuItem.className = 'rating-menu-item';
+        menuItem.textContent = item.text;
+        menuItem.dataset.type = item.type;
+        
+        menuItem.addEventListener('click', async () => {
+          // 現在の評価状態を履歴に保存
+          const currentState = await new Promise(resolve => {
+            chrome.storage.local.get(null, resolve);
+          });
+          const relevantState = Object.entries(currentState)
+            .filter(([key]) => key.startsWith(videoId))
+            .reduce((obj, [key, value]) => {
+              obj[key] = value;
+              return obj;
+            }, {});
+          undoHistory.push({ videoId, state: relevantState });
+
+          if (item.class === 'remove') {
+            // 評価を削除する場合は、関連するすべての情報を削除
+            const keysToRemove = Object.keys(await new Promise(resolve => {
+              chrome.storage.local.get(null, resolve);
+            })).filter(key => key.startsWith(videoId));
+            
+            await new Promise(resolve => {
+              chrome.storage.local.remove(keysToRemove, resolve);
+            });
+
             // 行を削除
             row.remove();
-          });
+          } else {
+            // 他の評価を削除
+            const keysToRemove = ['hold', 'like', 'super-like'].map(type => 
+              `${videoId}_${type}_active`
+            );
+            await new Promise(resolve => {
+              chrome.storage.local.remove(keysToRemove, resolve);
+            });
+
+            // 新しい評価を保存
+            await new Promise(resolve => {
+              chrome.storage.local.set({
+                [`${videoId}_${item.class}_active`]: true
+              }, resolve);
+            });
+
+            // 表示を更新
+            location.reload();
+          }
+
+          // 元に戻すボタンを表示（既存のボタンを使用）
+          undoButton.style.display = 'block';
         });
+
+        ratingMenu.appendChild(menuItem);
       });
-      ratingCell.appendChild(deleteButton);
+
+      ratingCell.appendChild(ratingDisplay);
+      ratingCell.appendChild(ratingMenu);
 
       row.appendChild(thumbnailCell);
       row.appendChild(titleCell);
+      row.appendChild(userCell);
       row.appendChild(viewsCell);
       row.appendChild(dateCell);
       row.appendChild(tagsCell);
@@ -202,6 +297,25 @@ chrome.storage.local.get(null, (result) => {
         });
       });
     }
+  });
+
+  // 検索機能を追加
+  const userSearch = document.getElementById('userSearch');
+  userSearch.addEventListener('input', () => {
+    const searchTerm = userSearch.value.toLowerCase();
+    const sortedVideos = Object.entries(videoData);
+    
+    // 検索条件に基づいてフィルタリング
+    const filteredVideos = searchTerm 
+      ? sortedVideos.filter(([_, data]) => data.user.toLowerCase().includes(searchTerm))
+      : sortedVideos;
+
+    // 現在のソート条件を適用して表示
+    const sortedAndFiltered = currentSort.column
+      ? sortVideos(Object.fromEntries(filteredVideos), currentSort.column, currentSort.direction)
+      : filteredVideos;
+
+    displayVideos(sortedAndFiltered);
   });
 
   // 初期表示

@@ -34,44 +34,54 @@
   font-size: 0.9em;
 }
 
+/* 未評価時のボタンスタイル（控えめな色） */
 .like-button.like {
-  background-color: #ff9999;
+  background-color: rgba(255, 153, 153, 0.5);  /* 薄いピンク */
   color: white;
 }
 
 .like-button.super-like {
-  background-color: #ff4444;
+  background-color: rgba(255, 68, 68, 0.5);  /* 薄い赤 */
   color: white;
 }
 
-.like-button:hover {
-  opacity: 0.8;
+.like-button.hold {
+  background-color: rgba(153, 153, 153, 0.5);  /* 薄いグレー */
+  color: white;
 }
 
-.like-count {
-  margin-left: 5px;
-}
-
-.like-button.active {
+/* アクティブ（評価済み）時のボタンスタイル（強調色） */
+.like-button.like.active {
+  background-color: #ff6666;  /* 鮮やかなピンク */
   transform: scale(1.05);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
-.like-button.like.active {
-  background-color: #ff6666;
-}
-
 .like-button.super-like.active {
-  background-color: #ff0000;
-}
-
-.like-button.hold {
-  background-color: #999999;
-  color: white;
+  background-color: #ff0000;  /* 鮮やかな赤 */
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
 }
 
 .like-button.hold.active {
-  background-color: #666666;
+  background-color: #666666;  /* 濃いグレー */
+  transform: scale(1.05);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+/* ホバー時の効果を調整 */
+.like-button:hover {
+  opacity: 0.9;
+  transform: scale(1.02);
+}
+
+.like-button.active:hover {
+  opacity: 1;
+  transform: scale(1.05);
+}
+
+.like-count {
+  margin-left: 5px;
 }
 
 .like-button.list {
@@ -118,5 +128,48 @@
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+.rating-notification {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-100px);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-weight: bold;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+  z-index: 1000000;
+  animation: notificationSlide 1.5s ease-in-out forwards;
+}
+
+/* 初回評価時の通知スタイル（青） */
+.rating-notification:not(.update) {
+  background-color: rgba(52, 152, 219, 0.9);
+}
+
+/* 評価更新時の通知スタイル（緑） */
+.rating-notification.update {
+  background-color: rgba(46, 204, 113, 0.9);
+}
+
+@keyframes notificationSlide {
+  0% {
+    transform: translateX(-50%) translateY(-100px);
+    opacity: 0;
+  }
+  20% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  80% {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-100px);
+    opacity: 0;
   }
 } 
