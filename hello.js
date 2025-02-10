@@ -30,9 +30,21 @@ chrome.storage.local.get(null, (result) => {
   // 動画情報を表示する関数
   function displayVideos(sortedData) {
     const videoList = document.getElementById('videoList');
-    videoList.innerHTML = '';  // リストをクリア
+    videoList.innerHTML = '';
 
     sortedData.forEach(([videoId, data]) => {
+      // 以下の場合はスキップ:
+      // 1. 評価が無い
+      // 2. タイトルがsm～から始まる
+      // 3. 投稿日時が不明
+      // 4. 再生数が不明
+      if (!data.like && !data['super-like'] && !data.hold ||
+          data.title.startsWith('sm') ||
+          data.date === '不明' ||
+          data.views === '不明') {
+        return;
+      }
+
       const row = document.createElement('div');
       row.className = 'row';
       
@@ -186,7 +198,7 @@ chrome.storage.local.get(null, (result) => {
           });
           
           // 元に戻すボタンを追加
-          document.querySelector('.header-container').appendChild(restoreButton);
+          document.querySelector('.button-group').appendChild(restoreButton);
         });
       });
     }

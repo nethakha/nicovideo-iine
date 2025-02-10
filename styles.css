@@ -1,10 +1,16 @@
 .like-buttons {
   position: fixed;
-  bottom: 20px;
   right: 20px;
+  bottom: 20px;
   display: flex;
+  flex-direction: column;
   gap: 10px;
   z-index: 999999;
+}
+
+.buttons-group {
+  display: flex;
+  gap: 10px;
   background-color: rgba(255, 255, 255, 0.95);
   padding: 12px;
   border-radius: 8px;
@@ -19,6 +25,13 @@
   font-weight: bold;
   transition: all 0.2s;
   min-width: 80px;
+  width: 80px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  font-size: 0.9em;
 }
 
 .like-button.like {
@@ -68,4 +81,42 @@
 
 .like-button.list:hover {
   background-color: #45a049;
+}
+
+.list-button-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: 80px;
+}
+
+.rated-badge {
+  background-color: white;
+  color: #3498db;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.85em;
+  font-weight: bold;
+  text-align: center;
+  border: 1px solid #3498db;
+  animation: fadeIn 0.3s ease-in-out;
+  white-space: nowrap;
+  width: 80px;
+  box-sizing: border-box;
+  box-shadow: none;
+  cursor: default;
+  margin-bottom: -5px;
+  align-self: flex-end;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 } 

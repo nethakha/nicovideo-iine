@@ -27,9 +27,33 @@ function createLikeButtons() {
     window.open(chrome.runtime.getURL('hello.html'), '_blank');
   });
 
-  // 各ボタンをコンテナに追加
-  ratingButtons.forEach(button => buttonsContainer.appendChild(button));
-  buttonsContainer.appendChild(listButton);
+  // 評価ボタンと評価一覧ボタンのコンテナを作成
+  const buttonsGroup = document.createElement('div');
+  buttonsGroup.className = 'buttons-group';
+
+  // 評価ボタンを追加
+  ratingButtons.forEach(button => buttonsGroup.appendChild(button));
+  
+  // 評価一覧ボタンを追加
+  buttonsGroup.appendChild(listButton);
+
+  // 評価済みかどうかを確認してからボタングループを追加
+  chrome.storage.local.get(null, (result) => {
+    const hasRating = ['hold', 'like', 'super-like'].some(type => 
+      result[`${videoId}_${type}_active`]
+    );
+
+    if (hasRating) {
+      // 評価済みの表示を追加
+      const ratedBadge = document.createElement('div');
+      ratedBadge.className = 'rated-badge';
+      ratedBadge.textContent = '評価済み';
+      // まずバッジを追加
+      buttonsContainer.appendChild(ratedBadge);
+    }
+    // その後でボタングループを追加
+    buttonsContainer.appendChild(buttonsGroup);
+  });
 
   // ボタンをbodyに直接追加
   document.body.appendChild(buttonsContainer);
@@ -71,52 +95,106 @@ function createLikeButtons() {
 function createButton(text, className, videoId) {
   const button = document.createElement('button');
   button.className = `like-button ${className}`;
-  button.innerHTML = `${text}`;
+  button.textContent = text;
+  button.addEventListener('click', async () => {
+    try {
+      // 保存されている情報を確認
+      const result = await new Promise((resolve) => {
+        chrome.storage.local.get([
+          `${videoId}_title`,
+          `${videoId}_views`,
+          `${videoId}_date`
+        ], resolve);
+      });
 
-  const key = videoId + '_' + className;
-  
-  // ストレージから現在の状態を取得して表示
-  chrome.storage.local.get(null, (result) => {
-    // 他のボタンのアクティブ状態を確認
-    const isAnyOtherActive = ['hold', 'like', 'super-like'].some(type => 
-      type !== className && result[`${videoId}_${type}_active`]
-    );
+      const title = result[`${videoId}_title`] || '';
+      const views = result[`${videoId}_views`] || '不明';
+      const date = result[`${videoId}_date`] || '不明';
 
-    const isActive = result[key + '_active'] || false;
-    if (isActive) {
+      // 評価できない条件をチェック
+      if (title.startsWith('sm') || views === '不明' || date === '不明') {
+        throw new Error('必要な情報が取得できません');
+      }
+
+      // 他の評価をすべて削除
+      const keysToRemove = ['hold', 'like', 'super-like'].map(type => 
+        `${videoId}_${type}_active`
+      );
+      await new Promise((resolve) => {
+        chrome.storage.local.remove(keysToRemove, resolve);
+      });
+
+      // 新しい評価を保存
+      await new Promise((resolve, reject) => {
+        chrome.storage.local.set({
+          [`${videoId}_${className}_active`]: true
+        }, () => {
+          if (chrome.runtime.lastError) {
+            reject(chrome.runtime.lastError);
+          } else {
+            resolve();
+          }
+        });
+      });
+
+      // 動画情報を再取得して保存
+      const saveVideoInfo = () => {
+        const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
+        const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
+        const dateElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time");
+        const tagArea = document.querySelector("[data-anchor-area=tags]");
+        const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
+
+        if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement) {
+          const videoTitle = titleElement.textContent.trim();
+          const viewCount = viewCountElement.textContent.trim();
+          const uploadDate = dateElement.textContent.trim();
+          const tags = Array.from(tagArea.parentElement.parentElement.querySelectorAll("a"))
+            .map(it => it.textContent)
+            .filter(it => !!it)
+            .join(', ');
+          const thumbnail = thumbnailElement.href;
+
+          chrome.storage.local.set({
+            [`${videoId}_title`]: videoTitle,
+            [`${videoId}_views`]: viewCount,
+            [`${videoId}_date`]: uploadDate,
+            [`${videoId}_tags`]: tags,
+            [`${videoId}_thumbnail`]: thumbnail
+          });
+        }
+      };
+
+      // 情報を更新
+      saveVideoInfo();
+
+      // ボタンの状態を更新
+      document.querySelectorAll('.like-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
       button.classList.add('active');
+
+      // 評価済みバッジがまだない場合は追加
+      if (!document.querySelector('.rated-badge')) {
+        const ratedBadge = document.createElement('div');
+        ratedBadge.className = 'rated-badge';
+        ratedBadge.textContent = '評価済み';
+        const buttonsContainer = document.querySelector('.like-buttons');
+        const buttonsGroup = document.querySelector('.buttons-group');
+        buttonsContainer.insertBefore(ratedBadge, buttonsGroup);
+      }
+
+    } catch (error) {
+      alert('評価に失敗しました。ページをリロードして再度評価してください。');
+      console.error('評価エラー:', error);
     }
   });
 
-  button.addEventListener('click', () => {
-    chrome.storage.local.get(null, (result) => {
-      const isCurrentlyActive = result[key + '_active'] || false;
-      
-      // 現在のボタンの状態を反転
-      const newActive = !isCurrentlyActive;
-
-      // 全ての評価ボタンを非アクティブにする
-      const updates = {};
-      ['hold', 'like', 'super-like'].forEach(type => {
-        const otherKey = `${videoId}_${type}`;
-        updates[otherKey + '_active'] = false;
-      });
-
-      // クリックされたボタンの状態を設定
-      updates[key + '_active'] = newActive;
-
-      // 変更を保存
-      chrome.storage.local.set(updates, () => {
-        // 全ての評価ボタンからactiveクラスを削除
-        document.querySelectorAll('.like-button.hold, .like-button.like, .like-button.super-like')
-          .forEach(btn => btn.classList.remove('active'));
-
-        // クリックされたボタンのactiveクラスを設定
-        if (newActive) {
-          button.classList.add('active');
-        }
-      });
-    });
+  // 現在の状態を確認
+  chrome.storage.local.get(`${videoId}_${className}_active`, (result) => {
+    if (result[`${videoId}_${className}_active`]) {
+      button.classList.add('active');
+    }
   });
 
   return button;
