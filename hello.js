@@ -3,6 +3,9 @@ chrome.storage.local.get(null, (result) => {
   const videoData = {};
   let currentSort = { column: null, direction: 'asc' };
 
+  // バックアップデータを保持する変数
+  let lastBackup = null;
+
   // ストレージデータを整理
   Object.entries(result).forEach(([key, value]) => {
     if (key.includes('_active')) {
@@ -154,6 +157,39 @@ chrome.storage.local.get(null, (result) => {
       const sortedVideos = sortVideos(videoData, column, direction);
       displayVideos(sortedVideos);
     });
+  });
+
+  // 全削除ボタンのイベントリスナー
+  document.getElementById('deleteAll').addEventListener('click', () => {
+    if (confirm('すべての評価を削除しますか？')) {
+      // 現在のデータをバックアップ
+      chrome.storage.local.get(null, (data) => {
+        lastBackup = data;
+        
+        // データを削除
+        chrome.storage.local.clear(() => {
+          // 一覧をクリア
+          const videoList = document.getElementById('videoList');
+          videoList.innerHTML = '';
+          
+          // 元に戻すボタンを表示
+          const restoreButton = document.createElement('button');
+          restoreButton.className = 'restore-button';
+          restoreButton.textContent = '元に戻す';
+          restoreButton.addEventListener('click', () => {
+            if (lastBackup) {
+              chrome.storage.local.set(lastBackup, () => {
+                // データを再表示
+                location.reload();
+              });
+            }
+          });
+          
+          // 元に戻すボタンを追加
+          document.querySelector('.header-container').appendChild(restoreButton);
+        });
+      });
+    }
   });
 
   // 初期表示

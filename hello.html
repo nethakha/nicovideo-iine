@@ -20,6 +20,12 @@
       border-radius: 12px;
       box-shadow: 0 2px 15px rgba(0, 0, 0, 0.1);
     }
+    .header-container {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
     h1 {
       font-size: 32px;
       color: #2c3e50;
@@ -257,11 +263,49 @@
     .row:hover .rating-superlike {
       color: #c0392b;
     }
+
+    /* 全削除ボタンのスタイル */
+    .delete-all-button {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 1em;
+      transition: all 0.2s;
+    }
+
+    .delete-all-button:hover {
+      background-color: #c0392b;
+      transform: scale(1.05);
+    }
+
+    /* 元に戻すボタンのスタイル */
+    .restore-button {
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-size: 1em;
+      margin-left: 10px;
+      transition: all 0.2s;
+    }
+
+    .restore-button:hover {
+      background-color: #27ae60;
+      transform: scale(1.05);
+    }
   </style>
 </head>
 <body>
   <div class="container">
-    <h1>ニコニコ動画 評価一覧</h1>
+    <div class="header-container">
+      <h1>ニコニコ動画 評価一覧</h1>
+      <button id="deleteAll" class="delete-all-button">全削除</button>
+    </div>
     <div class="table">
       <div class="header">
         <div class="header-cell">サムネ</div>
