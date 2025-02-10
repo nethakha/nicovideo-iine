@@ -62,7 +62,8 @@ function createLikeButtons() {
   const saveVideoInfo = () => {
     const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
     const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
-    const dateElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time");
+    const dateElement = Array.from(document.querySelectorAll('time[datetime]'))
+      .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
     const tagArea = document.querySelector("[data-anchor-area=tags]");
     const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
     const userElement = document.querySelector("[data-anchor-area=video_information]:nth-child(2)");
@@ -165,7 +166,8 @@ function createButton(text, className, videoId) {
       const saveVideoInfo = () => {
         const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
         const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
-        const dateElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time");
+        const dateElement = Array.from(document.querySelectorAll('time[datetime]'))
+          .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
         const tagArea = document.querySelector("[data-anchor-area=tags]");
         const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
         const userElement = document.querySelector('[data-anchor-area="video_information"]:nth-child(2)');
