@@ -43,6 +43,12 @@ chrome.storage.local.get(null, (result) => {
     if (key.includes('_active')) {
       const [videoId, type] = key.replace('_active', '').split('_');
       if (!videoData[videoId]) {
+        // 最初の動画かどうかを確認
+        const existingNumbers = Object.values(result)
+          .filter(v => typeof v === 'number')
+          .map(v => parseInt(v));
+        const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+        
         videoData[videoId] = { 
           like: false, 
           'super-like': false,
@@ -51,11 +57,34 @@ chrome.storage.local.get(null, (result) => {
           date: result[`${videoId}_date`] || '不明',
           tags: result[`${videoId}_tags`] || '不明',
           thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
-          user: result[`${videoId}_user`] || '不明'
+          user: result[`${videoId}_user`] || '不明',
+          addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
+          number: result[`${videoId}_number`] || maxNumber + 1
         };
+
+        // No.が未設定の場合はストレージに保存
+        if (!result[`${videoId}_number`]) {
+          chrome.storage.local.set({
+            [`${videoId}_number`]: maxNumber + 1
+          });
+        }
       }
       if (value) {
         videoData[videoId][type] = true;
+        // 追加日時とNo.が未設定の場合は設定
+        if (!result[`${videoId}_addedAt`] || !result[`${videoId}_number`]) {
+          // 現在の最大No.を取得
+          const numbers = Object.values(result)
+            .filter(v => typeof v === 'number')
+            .map(v => parseInt(v));
+          const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+          
+          chrome.storage.local.set({
+            [`${videoId}_addedAt`]: new Date().toISOString(),
+            [`${videoId}_number`]: maxNumber + 1  // 最大No.の次の番号を割り当て
+          });
+          videoData[videoId].number = maxNumber + 1;
+        }
       }
     }
   });
@@ -65,7 +94,7 @@ chrome.storage.local.get(null, (result) => {
     const videoList = document.getElementById('videoList');
     videoList.innerHTML = '';
 
-    sortedData.forEach(([videoId, data]) => {
+    sortedData.forEach(([videoId, data], index) => {
       // 以下の場合はスキップ:
       // 1. 評価が無い
       // 2. タイトルがsm～から始まる
@@ -91,6 +120,29 @@ chrome.storage.local.get(null, (result) => {
         
         row.classList.toggle('selected');
       });
+
+      // No.セルを作成
+      const numberCell = document.createElement('div');
+      numberCell.className = 'cell number';
+      
+      const numberText = document.createElement('div');
+      numberText.className = 'number-text';
+      numberText.textContent = data.number || '-';  // 保存されたNo.を表示
+      
+      const dateText = document.createElement('div');
+      dateText.className = 'date-text';
+      const addedDate = new Date(data.addedAt);
+      // 日付と時刻を表示（YYYY/MM/DD HH:mm:ss形式）
+      const year = addedDate.getFullYear();
+      const month = String(addedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(addedDate.getDate()).padStart(2, '0');
+      const hours = String(addedDate.getHours()).padStart(2, '0');
+      const minutes = String(addedDate.getMinutes()).padStart(2, '0');
+      const seconds = String(addedDate.getSeconds()).padStart(2, '0');
+      dateText.textContent = `${year}/${month}/${day} ${hours}:${minutes}:${seconds}`;
+      
+      numberCell.appendChild(numberText);
+      numberCell.appendChild(dateText);
 
       const thumbnailCell = document.createElement('div');
       thumbnailCell.className = 'cell thumbnail';
@@ -215,14 +267,36 @@ chrome.storage.local.get(null, (result) => {
               data.hold = true;
             }
             
+            // No.が未設定の場合は新しい番号を割り当て
+            if (!data.number) {
+              // 現在の最大No.を取得
+              const numbers = Object.values(videoData)
+                .map(v => v.number)
+                .filter(n => n !== null)
+                .map(n => parseInt(n));
+              // 最初の動画の場合は1、それ以外は最大値+1
+              const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+              data.number = numbers.length === 0 ? 1 : maxNumber + 1;
+              
+              // ストレージにも保存
+              chrome.storage.local.set({
+                [`${videoId}_number`]: data.number
+              });
+            }
+            
             // videoDataオブジェクトを更新
             videoData[videoId] = data;
 
-            // 現在のソート状態を維持したまま全データを再ソート
-            if (currentSort.column) {  // ソートが適用されている場合
-              const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
-              displayVideos(sortedVideos);
-            }
+            // 評価変更を通知して全タブを更新
+            chrome.runtime.sendMessage({ type: 'ratingUpdated' }, () => {
+              // 現在のタブの表示を更新
+              if (currentSort.column) {
+                const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
+                displayVideos(sortedVideos);
+              } else {
+                displayVideos(Object.entries(videoData));
+              }
+            });
           }
 
           // 元に戻すボタンを表示（既存のボタンを使用）
@@ -235,6 +309,7 @@ chrome.storage.local.get(null, (result) => {
       ratingCell.appendChild(ratingDisplay);
       ratingCell.appendChild(ratingMenu);
 
+      row.appendChild(numberCell);
       row.appendChild(thumbnailCell);
       row.appendChild(titleCell);
       row.appendChild(userCell);
@@ -252,6 +327,12 @@ chrome.storage.local.get(null, (result) => {
       let comparison = 0;
       
       switch (column) {
+        case 'No.':
+          // 保存されているNo.情報でソート
+          const numberA = a.number || Infinity;  // No.がない場合は最後尾に
+          const numberB = b.number || Infinity;
+          comparison = numberA - numberB;
+          break;
         case 'タイトル':
           comparison = a.title.localeCompare(b.title);
           break;
@@ -302,7 +383,7 @@ chrome.storage.local.get(null, (result) => {
 
   // ヘッダーにクリックイベントを追加
   document.querySelectorAll('.header-cell').forEach((header, index) => {
-    const columns = ['サムネ', 'タイトル', '投稿者', '再生数', '投稿日時', 'タグ', '評価'];
+    const columns = ['No.', 'サムネ', 'タイトル', '投稿者', '再生数', '投稿日時', 'タグ', '評価'];
     const column = columns[index];
 
     // no-sortクラスを持つヘッダーはスキップ
@@ -364,6 +445,12 @@ chrome.storage.local.get(null, (result) => {
           videoList.innerHTML = '';
           
           // 元に戻すボタンを表示
+          // 既存の元に戻すボタンを削除
+          const existingRestoreButton = document.querySelector('.restore-button');
+          if (existingRestoreButton) {
+            existingRestoreButton.remove();
+          }
+          
           const restoreButton = document.createElement('button');
           restoreButton.className = 'restore-button';
           restoreButton.textContent = '元に戻す';
@@ -609,28 +696,47 @@ chrome.storage.local.get(null, (result) => {
   // 評価更新メッセージを受信したら更新
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'ratingUpdated') {
-      // ソート状態を保持したまま再表示
-      chrome.storage.local.get(['savedSortColumn', 'savedSortDirection'], (result) => {
-        if (result.savedSortColumn) {
-          currentSort = {
-            column: result.savedSortColumn,
-            direction: result.savedSortDirection
-          };
-          
-          // ヘッダーのソートインジケータを更新
-          document.querySelectorAll('.header-cell').forEach(h => {
-            h.classList.remove('sort-asc', 'sort-desc');
-            h.title = '';
-            if (h.textContent === currentSort.column) {
-              h.classList.add(`sort-${currentSort.direction}`);
-              const titleText = currentSort.direction === 'asc' ? 
-                '昇順でソート中（クリックで降順に変更）' : 
-                '降順でソート中（クリックで昇順に変更）';
-              h.title = titleText;
+      // データを再読み込み
+      chrome.storage.local.get(null, (result) => {
+        // videoDataを更新
+        Object.entries(result).forEach(([key, value]) => {
+          if (key.includes('_active')) {
+            const [videoId, type] = key.replace('_active', '').split('_');
+            if (!videoData[videoId]) {
+              // 最初の動画かどうかを確認
+              const existingNumbers = Object.values(result)
+                .filter(v => typeof v === 'number')
+                .map(v => parseInt(v));
+              const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+              
+              videoData[videoId] = {
+                like: false,
+                'super-like': false,
+                title: result[`${videoId}_title`] || videoId,
+                views: result[`${videoId}_views`] || '不明',
+                date: result[`${videoId}_date`] || '不明',
+                tags: result[`${videoId}_tags`] || '不明',
+                thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
+                user: result[`${videoId}_user`] || '不明',
+                addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
+                number: result[`${videoId}_number`] || maxNumber + 1
+              };
+              
+              // No.が未設定の場合はストレージに保存
+              if (!result[`${videoId}_number`]) {
+                chrome.storage.local.set({
+                  [`${videoId}_number`]: maxNumber + 1
+                });
+              }
             }
-          });
-          
-          // データを再ソートして表示
+            if (value) {
+              videoData[videoId][type] = true;
+            }
+          }
+        });
+
+        // ソート状態を維持したまま再表示
+        if (currentSort.column) {
           const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
           displayVideos(sortedVideos);
         } else {

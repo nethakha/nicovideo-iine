@@ -42,7 +42,8 @@
       margin-top: 20px;
       font-size: 16px;
       display: grid;
-      grid-template-columns: 120px 25% 15% 10% 12% 18% 10%;
+      grid-template-columns: 80px 120px 300px 120px 140px 120px 200px 120px;
+      min-width: 0;
     }
     .header {
       display: contents;
@@ -100,6 +101,7 @@
       display: flex;
       align-items: center;
       position: relative;
+      min-width: 0;
     }
     .row:hover > .cell {
       background-color: #f5f9ff;
@@ -888,6 +890,36 @@
       background: #7f8c8d;
       transform: translateY(-1px);
     }
+
+    /* No.セルのスタイル */
+    .cell.number {
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+    }
+    
+    .cell.number .number-text {
+      font-size: 1.2em;
+      font-weight: bold;
+      color: #2c3e50;
+    }
+    
+    .cell.number .date-text {
+      font-size: 0.8em;
+      color: #95a5a6;
+    }
+
+    /* タイトルセルのスタイル */
+    .cell:nth-child(3) {
+      overflow: hidden;
+    }
+    
+    .cell:nth-child(3) a {
+      text-overflow: ellipsis;
+      overflow: hidden;
+      white-space: nowrap;
+    }
   </style>
 </head>
 <body>
@@ -942,6 +974,7 @@
 
     <div class="table">
       <div class="header">
+        <div class="header-cell">No.</div>
         <div class="header-cell no-sort">サムネ</div>
         <div class="header-cell">タイトル</div>
         <div class="header-cell">投稿者</div>
