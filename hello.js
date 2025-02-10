@@ -77,7 +77,18 @@ chrome.storage.local.get(null, (result) => {
 
       const row = document.createElement('div');
       row.className = 'row';
+      row.setAttribute('data-video-id', videoId);
       
+      // 行のクリックイベントを追加
+      row.addEventListener('click', (e) => {
+        // リンクやボタンのクリックは無視
+        if (e.target.tagName === 'A' || e.target.tagName === 'BUTTON') {
+          return;
+        }
+        
+        row.classList.toggle('selected');
+      });
+
       const thumbnailCell = document.createElement('div');
       thumbnailCell.className = 'cell thumbnail';
       thumbnailCell.innerHTML = `<img src="${data.thumbnail}" alt="${data.title}" loading="lazy" onerror="this.src='https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image'">`;
@@ -296,6 +307,62 @@ chrome.storage.local.get(null, (result) => {
           document.querySelector('.button-group').appendChild(restoreButton);
         });
       });
+    }
+  });
+
+  // 選択項目の削除ボタンのイベントリスナー
+  const deleteSelectedButton = document.getElementById('deleteSelected');
+  
+  // 選択状態の変更を監視して削除ボタンの状態を更新
+  const observer = new MutationObserver(() => {
+    const selectedRows = document.querySelectorAll('.row.selected');
+    deleteSelectedButton.disabled = selectedRows.length === 0;
+  });
+  
+  observer.observe(document.getElementById('videoList'), {
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['class']
+  });
+  
+  deleteSelectedButton.addEventListener('click', async () => {
+    const selectedRows = document.querySelectorAll('.row.selected');
+    if (selectedRows.length === 0) return;
+
+    if (confirm(`選択された${selectedRows.length}件の評価を削除しますか？`)) {
+      // 現在のデータをバックアップ
+      const currentState = await new Promise(resolve => {
+        chrome.storage.local.get(null, resolve);
+      });
+
+      // 選択された項目のデータを収集
+      const keysToRemove = [];
+      selectedRows.forEach(row => {
+        const videoId = row.getAttribute('data-video-id');
+        Object.keys(currentState).forEach(key => {
+          if (key.startsWith(videoId)) {
+            keysToRemove.push(key);
+          }
+        });
+      });
+
+      // 履歴に保存
+      const relevantState = keysToRemove.reduce((obj, key) => {
+        obj[key] = currentState[key];
+        return obj;
+      }, {});
+      undoHistory.push({ state: relevantState });
+
+      // 選択された項目を削除
+      await new Promise(resolve => {
+        chrome.storage.local.remove(keysToRemove, resolve);
+      });
+
+      // 選択された行を削除
+      selectedRows.forEach(row => row.remove());
+
+      // 元に戻すボタンを表示
+      undoButton.style.display = 'block';
     }
   });
 
