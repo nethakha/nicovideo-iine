@@ -306,6 +306,7 @@ chrome.storage.local.get(null, (result) => {
   function filterVideos() {
     const userSearchTerm = userSearch.value.toLowerCase();
     const tagSearchTerm = tagSearch.value.toLowerCase();
+    const viewsFilterValue = document.getElementById('viewsFilter').value;
     const videoList = document.getElementById('videoList');
     const rows = videoList.children;
     
@@ -313,6 +314,7 @@ chrome.storage.local.get(null, (result) => {
     Array.from(rows).forEach(row => {
       const userCell = row.querySelector('.user-name a');
       const tagsCell = row.querySelector('.video-tags');
+      const viewsCell = row.querySelector('.views-count');
       
       // ユーザー名での検索
       const matchesUser = userSearchTerm ? 
@@ -337,14 +339,42 @@ chrome.storage.local.get(null, (result) => {
         });
       }
 
+      // 再生数でのフィルタリング
+      let matchesViews = true;
+      const viewsRanges = [
+        { value: 0, label: '50未満', threshold: 50 },
+        { value: 1, label: '100未満', threshold: 100 },
+        { value: 2, label: '500未満', threshold: 500 },
+        { value: 3, label: '1000未満', threshold: 1000 },
+        { value: 4, label: '3000未満', threshold: 3000 },
+        { value: 5, label: '5000未満', threshold: 5000 },
+        { value: 6, label: '1万未満', threshold: 10000 },
+        { value: 7, label: '5万未満', threshold: 50000 },
+        { value: 8, label: '10万未満', threshold: 100000 },
+        { value: 9, label: '25万未満', threshold: 250000 },
+        { value: 10, label: '50万未満', threshold: 500000 },
+        { value: 11, label: '100万未満', threshold: 1000000 },
+        { value: 12, label: 'すべて', threshold: Infinity }
+      ];
+      
+      const selectedRange = viewsRanges[parseInt(viewsFilterValue)];
+      document.getElementById('viewsLabel').textContent = selectedRange.label;
+      
+      if (selectedRange.value !== 7) {
+        const viewsText = viewsCell.textContent.replace(/,/g, '');
+        const views = parseInt(viewsText);
+        matchesViews = !isNaN(views) && views < selectedRange.threshold;
+      }
+
       // 表示/非表示を設定
-      row.style.display = matchesUser && matchesTags ? '' : 'none';
+      row.style.display = matchesUser && matchesTags && matchesViews ? '' : 'none';
     });
   }
 
   // 検索イベントリスナーを設定
   userSearch.addEventListener('input', filterVideos);
   tagSearch.addEventListener('input', filterVideos);
+  document.getElementById('viewsFilter').addEventListener('input', filterVideos);
 
   // 日付フィールドの初期化と処理
   function initializeDateFields() {

@@ -89,8 +89,11 @@ class CustomCalendar {
 
     // 前月の日付を追加
     for (let i = 0; i < startPadding; i++) {
+      const prevMonthLastDay = new Date(year, month, 0);
+      const day = prevMonthLastDay.getDate() - startPadding + i + 1;
       const dayDiv = document.createElement('div');
       dayDiv.className = 'day inactive';
+      dayDiv.textContent = day;
       daysGrid.appendChild(dayDiv);
     }
 
@@ -98,6 +101,20 @@ class CustomCalendar {
     for (let i = 1; i <= lastDay.getDate(); i++) {
       const dayDiv = document.createElement('div');
       dayDiv.className = 'day';
+      
+      // 土日の色分け
+      const dayOfWeek = new Date(year, month, i).getDay();
+      if (dayOfWeek === 0) dayDiv.classList.add('sunday');
+      if (dayOfWeek === 6) dayDiv.classList.add('saturday');
+      
+      // 今日の日付をハイライト
+      const today = new Date();
+      if (year === today.getFullYear() && 
+          month === today.getMonth() && 
+          i === today.getDate()) {
+        dayDiv.classList.add('today');
+      }
+      
       dayDiv.textContent = i;
 
       const currentDate = new Date(year, month, i);
@@ -107,6 +124,22 @@ class CustomCalendar {
       }
 
       dayDiv.addEventListener('click', () => this.selectDate(new Date(year, month, i)));
+      
+      // ツールチップで曜日を表示
+      const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+      const weekday = weekdays[new Date(year, month, i).getDay()];
+      dayDiv.title = `${month + 1}月${i}日(${weekday})`;
+
+      daysGrid.appendChild(dayDiv);
+    }
+
+    // 次月の日付を追加（最終行を埋める）
+    const totalDays = startPadding + lastDay.getDate();
+    const endPadding = Math.ceil(totalDays / 7) * 7 - totalDays;
+    for (let i = 1; i <= endPadding; i++) {
+      const dayDiv = document.createElement('div');
+      dayDiv.className = 'day inactive';
+      dayDiv.textContent = i;
       daysGrid.appendChild(dayDiv);
     }
   }
@@ -190,6 +223,37 @@ class CustomCalendar {
       
       if (!isCalendarElement && !isInputElement && !isDateCell) {
         this.hideCalendar();
+      }
+    });
+
+    // キーボード操作
+    document.addEventListener('keydown', (e) => {
+      if (!this.isVisible) return;
+      
+      switch(e.key) {
+        case 'Escape':
+          this.hideCalendar();
+          break;
+        case 'Enter':
+          if (this.selectedDate) {
+            this.hideCalendar();
+            this.options.onSelect(this.selectedDate);
+          }
+          break;
+        case 'ArrowLeft':
+          if (this.selectedDate) {
+            const newDate = new Date(this.selectedDate);
+            newDate.setDate(newDate.getDate() - 1);
+            this.selectDate(newDate);
+          }
+          break;
+        case 'ArrowRight':
+          if (this.selectedDate) {
+            const newDate = new Date(this.selectedDate);
+            newDate.setDate(newDate.getDate() + 1);
+            this.selectDate(newDate);
+          }
+          break;
       }
     });
   }

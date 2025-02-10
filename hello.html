@@ -711,6 +711,114 @@
     .month-select:hover {
       border-color: #3498db;
     }
+
+    .day.sunday {
+      color: #e74c3c;
+    }
+    
+    .day.saturday {
+      color: #3498db;
+    }
+
+    .day.today {
+      background: #f1c40f;
+      font-weight: bold;
+    }
+
+    /* フィルターグループのスタイル */
+    .filter-group {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .views-range {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .views-filter {
+      padding: 8px 12px;
+      border: 2px solid #3498db;
+      border-radius: 4px;
+      font-size: 14px;
+      background: white;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .views-filter:hover {
+      border-color: #2980b9;
+    }
+
+    .views-range label {
+      color: #2c3e50;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .views-slider {
+      width: 160px;
+      height: 8px;
+      -webkit-appearance: none;
+      background: #ddd;
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+
+    .views-slider::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 8px;
+      background: linear-gradient(to right, #3498db 0%, #2ecc71 100%);
+      border-radius: 3px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: transform;
+    }
+
+    .views-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 20px;
+      height: 20px;
+      background: #3498db;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      margin-top: -6px;
+      border: 2px solid white;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+      will-change: transform;
+      transform: translateZ(0);
+      backface-visibility: hidden;
+    }
+
+    .views-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      background: #2980b9;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+    }
+
+    .views-slider:active::-webkit-slider-thumb {
+      transform: scale(1.1);
+      background: #2980b9;
+    }
+
+    .views-slider:focus {
+      outline: none;
+    }
+
+    .views-label {
+      min-width: 100px;
+      display: inline-block;
+      margin-left: 10px;
+      color: #2c3e50;
+      font-weight: bold;
+      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      will-change: contents;
+    }
   </style>
 </head>
 <body>
@@ -740,12 +848,19 @@
     </div>
 
     <div class="filters-container">
-      <div class="date-range">
-        <label>期間指定:</label>
-        <input type="text" id="startDate" class="date-input" value="2007-03-06" readonly>
-        <span>～</span>
-        <input type="text" id="endDate" class="date-input" readonly>
-        <button id="resetDate" class="reset-button">リセット</button>
+      <div class="filter-group">
+        <div class="date-range">
+          <label>期間指定:</label>
+          <input type="text" id="startDate" class="date-input" value="2007-03-06" readonly>
+          <span>～</span>
+          <input type="text" id="endDate" class="date-input" readonly>
+          <button id="resetDate" class="reset-button">リセット</button>
+        </div>
+        <div class="views-range">
+          <label>再生数:</label>
+          <input type="range" id="viewsFilter" class="views-slider" min="0" max="12" value="0">
+          <span id="viewsLabel" class="views-label">すべて</span>
+        </div>
       </div>
     </div>
 
