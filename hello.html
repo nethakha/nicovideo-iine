@@ -64,8 +64,9 @@
       top: 0;
       z-index: 1;
       border-right: 1px solid rgba(255, 255, 255, 0.2);
-      cursor: pointer;
       user-select: none;
+      cursor: pointer;
+      title: 'クリックでソート';
     }
     .header-cell:first-child {
       border-top-left-radius: 8px;
@@ -74,10 +75,10 @@
       border-top-right-radius: 8px;
       border-right: none;
     }
-    .header-cell:hover {
+    .header-cell:not(.no-sort):hover {
       background-color: #2980b9;
     }
-    .header-cell::after {
+    .header-cell:not(.no-sort)::after {
       content: '⇅';
       margin-left: 8px;
       opacity: 0.3;
@@ -536,7 +537,7 @@
       border: 2px solid #3498db;
       border-radius: 4px;
       font-size: 14px;
-      width: 140px;
+      width: 110px;
       transition: all 0.3s;
       cursor: pointer;
       background: white;
@@ -558,7 +559,8 @@
     .date-range {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
+      flex-shrink: 0;
     }
 
     .date-range label {
@@ -732,12 +734,15 @@
       display: flex;
       gap: 20px;
       align-items: center;
+      flex-wrap: nowrap;  /* 改行を防ぐ */
+      overflow-x: auto;   /* 横スクロールを許可 */
     }
 
     .views-range {
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-shrink: 0;    /* 要素の縮小を防ぐ */
     }
 
     .views-filter {
@@ -818,8 +823,6 @@
       margin-left: 10px;
       color: #2c3e50;
       font-weight: bold;
-      transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
-      will-change: contents;
     }
 
     .row.selected > .cell {
@@ -852,6 +855,38 @@
       background-color: #bdc3c7;
       cursor: not-allowed;
       transform: none;
+    }
+
+    .header-cell.no-sort {
+      cursor: default;
+    }
+
+    .sort-status {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-shrink: 0;    /* 要素の縮小を防ぐ */
+    }
+
+    .sort-status-label {
+      color: #7f8c8d;
+      font-size: 0.9em;
+    }
+
+    .clear-sort-button {
+      padding: 6px 12px;
+      background: #95a5a6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+
+    .clear-sort-button:hover {
+      background: #7f8c8d;
+      transform: translateY(-1px);
     }
   </style>
 </head>
@@ -896,17 +931,23 @@
           <input type="range" id="viewsFilter" class="views-slider" min="0" max="12" value="0">
           <span id="viewsLabel" class="views-label">すべて</span>
         </div>
+        <div class="sort-status">
+          <span id="sortStatus" class="sort-status-label"></span>
+          <button id="clearSort" class="clear-sort-button" style="display: none;">
+            ソートを解除
+          </button>
+        </div>
       </div>
     </div>
 
     <div class="table">
       <div class="header">
-        <div class="header-cell">サムネ</div>
+        <div class="header-cell no-sort">サムネ</div>
         <div class="header-cell">タイトル</div>
         <div class="header-cell">投稿者</div>
         <div class="header-cell">再生数</div>
         <div class="header-cell">投稿日時</div>
-        <div class="header-cell">タグ</div>
+        <div class="header-cell no-sort">タグ</div>
         <div class="header-cell">評価</div>
       </div>
       <div id="videoList" class="content">

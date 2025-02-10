@@ -1,7 +1,10 @@
 // ストレージから評価データを取得して表示
 chrome.storage.local.get(null, (result) => {
   const videoData = {};
-  let currentSort = { column: null, direction: 'asc' };
+  let currentSort = {
+    column: result.savedSortColumn || null,
+    direction: result.savedSortDirection || 'asc'
+  };
 
   // バックアップデータを保持する変数
   let lastBackup = null;
@@ -128,12 +131,12 @@ chrome.storage.local.get(null, (result) => {
       // 評価表示用の要素
       const ratingDisplay = document.createElement('div');
       ratingDisplay.className = 'rating-display';
-      if (data.like) {
-        ratingDisplay.textContent = '好き';
-        ratingDisplay.className += ' rating-like';
-      } else if (data['super-like']) {
+      if (data['super-like']) {
         ratingDisplay.textContent = '大好き';
         ratingDisplay.className += ' rating-superlike';
+      } else if (data.like) {
+        ratingDisplay.textContent = '好き';
+        ratingDisplay.className += ' rating-like';
       } else if (data.hold) {
         ratingDisplay.textContent = '保留';
         ratingDisplay.className += ' rating-hold';
@@ -144,8 +147,8 @@ chrome.storage.local.get(null, (result) => {
       ratingMenu.className = 'rating-menu';
       
       const menuItems = [
-        { text: '好き', class: 'like', type: 'like' },
         { text: '大好き', class: 'super-like', type: 'super-like' },
+        { text: '好き', class: 'like', type: 'like' },
         { text: '保留', class: 'hold', type: 'hold' },
         { text: '評価を削除', class: 'remove', type: 'remove' }
       ];
@@ -197,8 +200,29 @@ chrome.storage.local.get(null, (result) => {
               }, resolve);
             });
 
-            // 表示を更新
-            location.reload();
+            // データを更新
+            if (item.class === 'super-like') {
+              data['super-like'] = true;
+              data.like = false;
+              data.hold = false;
+            } else if (item.class === 'like') {
+              data['super-like'] = false;
+              data.like = true;
+              data.hold = false;
+            } else if (item.class === 'hold') {
+              data['super-like'] = false;
+              data.like = false;
+              data.hold = true;
+            }
+            
+            // videoDataオブジェクトを更新
+            videoData[videoId] = data;
+
+            // 現在のソート状態を維持したまま全データを再ソート
+            if (currentSort.column) {  // ソートが適用されている場合
+              const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
+              displayVideos(sortedVideos);
+            }
           }
 
           // 元に戻すボタンを表示（既存のボタンを使用）
@@ -223,42 +247,77 @@ chrome.storage.local.get(null, (result) => {
   }
 
   // ソート関数
-  function sortVideos(videos, column, direction) {
-    return Object.entries(videos).sort((a, b) => {
-      const valueA = getSortValue(a[1], column);
-      const valueB = getSortValue(b[1], column);
+  function sortData(data, column) {
+    return data.sort(([, a], [, b]) => {
+      let comparison = 0;
       
-      if (direction === 'asc') {
-        return valueA > valueB ? 1 : -1;
-      } else {
-        return valueA < valueB ? 1 : -1;
-      }
-    });
-  }
+      switch (column) {
+        case 'タイトル':
+          comparison = a.title.localeCompare(b.title);
+          break;
+        case '投稿者':
+          comparison = a.user.localeCompare(b.user);
+          break;
+        case '再生数':
+          // カンマを除去して数値に変換
+          const viewsA = parseInt(a.views.replace(/[,万]/g, ''));
+          const viewsB = parseInt(b.views.replace(/[,万]/g, ''));
 
-  // ソート用の値を取得
-  function getSortValue(data, column) {
-    switch(column) {
-      case 'title':
-        return data.title.toLowerCase();
-      case 'views':
-        return parseInt(data.views.replace(/[^0-9]/g, '')) || 0;
-      case 'date':
-        return new Date(data.date);
-      case 'tags':
-        return data.tags.toLowerCase();
-      case 'rating':
-        const ratings = { '無評価': 0, '保留': 1, '好き': 2, '大好き': 3 };
-        return ratings[data.rating] || 0;
-      default:
-        return '';
-    }
+          // 「万」が含まれている場合は10000を掛ける
+          const finalViewsA = a.views.includes('万') ? viewsA * 10000 : viewsA;
+          const finalViewsB = b.views.includes('万') ? viewsB * 10000 : viewsB;
+
+          comparison = finalViewsA - finalViewsB;
+          break;
+        case '投稿日時':
+          const dateA = new Date(a.date.replace(/\//g, '-'));
+          const dateB = new Date(b.date.replace(/\//g, '-'));
+          comparison = dateA - dateB;
+          break;
+        case '評価':
+          // 評価の優先順位を設定
+          const ratingOrder = {
+            'none': 0,       // 評価なし
+            'hold': 1,      // 保留
+            'like': 2,      // 好き
+            'super-like': 3  // 大好き
+          };
+          // 各動画の評価値を取得
+          function getRatingValue(data) {
+            if (data['super-like']) return 'super-like';  // 大好き
+            if (data.like) return 'like';                 // 好き
+            if (data.hold) return 'hold';                 // 保留
+            return 'none';                                // 評価なし
+          }
+
+          const ratingA = getRatingValue(a);
+          const ratingB = getRatingValue(b);
+          comparison = ratingOrder[ratingA] - ratingOrder[ratingB];
+          break;
+      }
+      
+      return currentSort.direction === 'asc' ? comparison : -comparison;
+    });
   }
 
   // ヘッダーにクリックイベントを追加
   document.querySelectorAll('.header-cell').forEach((header, index) => {
-    const columns = ['thumbnail', 'title', 'views', 'date', 'tags', 'rating'];
+    const columns = ['サムネ', 'タイトル', '投稿者', '再生数', '投稿日時', 'タグ', '評価'];
     const column = columns[index];
+
+    // no-sortクラスを持つヘッダーはスキップ
+    if (header.classList.contains('no-sort')) {
+      return;
+    }
+
+    // 初期ソート状態を復元
+    if (column === currentSort.column) {
+      header.classList.add(`sort-${currentSort.direction}`);
+      const titleText = currentSort.direction === 'asc' ? 
+        '昇順でソート中（クリックで降順に変更）' : 
+        '降順でソート中（クリックで昇順に変更）';
+      header.title = titleText;
+    }
 
     header.addEventListener('click', () => {
       // ソート方向を決定
@@ -267,12 +326,26 @@ chrome.storage.local.get(null, (result) => {
       // ヘッダーのソートインジケータを更新
       document.querySelectorAll('.header-cell').forEach(h => {
         h.classList.remove('sort-asc', 'sort-desc');
+        h.title = '';  // 以前のtitleをクリア
       });
       header.classList.add(`sort-${direction}`);
+      
+      // ソート状態を示すtitleを設定
+      const titleText = direction === 'asc' ? 
+        '昇順でソート中（クリックで降順に変更）' : 
+        '降順でソート中（クリックで昇順に変更）';
+      header.title = titleText;
 
       // ソートして表示を更新
       currentSort = { column, direction };
-      const sortedVideos = sortVideos(videoData, column, direction);
+      // ソート状態表示を更新
+      updateSortStatus();
+      // ソート状態を保存
+      chrome.storage.local.set({
+        savedSortColumn: column,
+        savedSortDirection: direction
+      });
+      const sortedVideos = sortData(Object.entries(videoData), column);
       displayVideos(sortedVideos);
     });
   });
@@ -536,14 +609,79 @@ chrome.storage.local.get(null, (result) => {
   // 評価更新メッセージを受信したら更新
   chrome.runtime.onMessage.addListener((message) => {
     if (message.type === 'ratingUpdated') {
-      // 現在のスクロール位置を保存
-      const scrollPosition = window.scrollY;
-      
-      // ページを再読み込み
-      location.reload();
-
-      // スクロール位置を復元
-      window.scrollTo(0, scrollPosition);
+      // ソート状態を保持したまま再表示
+      chrome.storage.local.get(['savedSortColumn', 'savedSortDirection'], (result) => {
+        if (result.savedSortColumn) {
+          currentSort = {
+            column: result.savedSortColumn,
+            direction: result.savedSortDirection
+          };
+          
+          // ヘッダーのソートインジケータを更新
+          document.querySelectorAll('.header-cell').forEach(h => {
+            h.classList.remove('sort-asc', 'sort-desc');
+            h.title = '';
+            if (h.textContent === currentSort.column) {
+              h.classList.add(`sort-${currentSort.direction}`);
+              const titleText = currentSort.direction === 'asc' ? 
+                '昇順でソート中（クリックで降順に変更）' : 
+                '降順でソート中（クリックで昇順に変更）';
+              h.title = titleText;
+            }
+          });
+          
+          // データを再ソートして表示
+          const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
+          displayVideos(sortedVideos);
+        } else {
+          displayVideos(Object.entries(videoData));
+        }
+      });
     }
   });
+
+  // データを表示してからフィルターを適用
+  if (currentSort.column) {
+    const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
+    displayVideos(sortedVideos);
+  } else {
+    displayVideos(Object.entries(videoData));
+  }
+
+  // ソート状態表示を更新する関数
+  function updateSortStatus() {
+    const sortStatus = document.getElementById('sortStatus');
+    const clearSortButton = document.getElementById('clearSort');
+    
+    if (currentSort.column) {
+      const direction = currentSort.direction === 'asc' ? '昇順' : '降順';
+      sortStatus.textContent = `${currentSort.column}で${direction}ソート中`;
+      clearSortButton.style.display = 'block';
+    } else {
+      sortStatus.textContent = '';
+      clearSortButton.style.display = 'none';
+    }
+  }
+
+  // ソート解除ボタンのイベントリスナー
+  document.getElementById('clearSort').addEventListener('click', () => {
+    // ヘッダーのソートインジケータをクリア
+    document.querySelectorAll('.header-cell').forEach(h => {
+      h.classList.remove('sort-asc', 'sort-desc');
+      h.title = '';
+    });
+    
+    // ソート状態をクリア
+    currentSort = { column: null, direction: 'asc' };
+    updateSortStatus();
+    
+    // ストレージからソート状態を削除
+    chrome.storage.local.remove(['savedSortColumn', 'savedSortDirection']);
+    
+    // データを元の順序で表示
+    displayVideos(Object.entries(videoData));
+  });
+
+  // 初期表示時にソート状態を更新
+  updateSortStatus();
 }); 
