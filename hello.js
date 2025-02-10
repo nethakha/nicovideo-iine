@@ -57,12 +57,17 @@ chrome.storage.local.get(null, (result) => {
     if (key.includes('_active')) {
       const [videoId, type] = key.replace('_active', '').split('_');
       if (!videoData[videoId]) {
-        // 最初の動画かどうかを確認
-        const existingNumbers = Object.values(result)
-          .filter(v => typeof v === 'number')
-          .filter(n => !deletedNumbers.includes(n)) // 削除されたNo.を除外
-          .map(v => parseInt(v));
+        // 既存のナンバリングの最大値を取得
+        const existingNumbers = Object.entries(result)
+          .filter(([key]) => key.endsWith('_number'))
+          .map(([, value]) => parseInt(value))
+          .filter(num => !isNaN(num));  // 有効な数値のみ
+
+        // 最大値を取得（存在しない場合は0）
         const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+        
+        // 新規追加の場合は必ず最大値+1を割り当て
+        const newNumber = maxNumber + 1;
         
         videoData[videoId] = { 
           like: false, 
@@ -74,13 +79,13 @@ chrome.storage.local.get(null, (result) => {
           thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
           user: result[`${videoId}_user`] || '不明',
           addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
-          number: result[`${videoId}_number`] || maxNumber + 1
+          number: result[`${videoId}_number`] || newNumber
         };
 
-        // No.が未設定の場合のみストレージに保存
+        // 新規追加時は必ずナンバリングを保存
         if (!result[`${videoId}_number`]) {
           chrome.storage.local.set({
-            [`${videoId}_number`]: maxNumber + 1,
+            [`${videoId}_number`]: newNumber,
             [`${videoId}_addedAt`]: videoData[videoId].addedAt
           });
         }
@@ -444,6 +449,11 @@ chrome.storage.local.get(null, (result) => {
     if (confirm('すべての評価を削除しますか？')) {
       // 現在のデータをバックアップ
       chrome.storage.local.get(null, (data) => {
+        // 削除する項目数をカウント
+        const itemCount = Object.keys(data)
+          .filter(key => key.includes('_active') && data[key] === true)
+          .length;
+        
         lastBackup = data;
         
         // 現在のNo.をdeletedNumbersに追加
@@ -483,6 +493,9 @@ chrome.storage.local.get(null, (result) => {
             
             // 元に戻すボタンを追加
             document.querySelector('.button-group').appendChild(restoreButton);
+
+            // 削除完了のダイアログを表示
+            alert(`${itemCount}件の評価を削除しました`);
           });
         });
       });
@@ -509,33 +522,51 @@ chrome.storage.local.get(null, (result) => {
     if (selectedRows.length === 0) return;
 
     if (confirm(`選択された${selectedRows.length}件の評価を削除しますか？`)) {
-      // 現在のデータをバックアップ
       const currentState = await new Promise(resolve => {
         chrome.storage.local.get(null, resolve);
       });
 
       // 選択された項目のデータを収集
       const keysToRemove = [];
-      const numbersToDelete = [];
+      const numbersToDelete = [];  // 変数名を変更
       selectedRows.forEach(row => {
         const videoId = row.getAttribute('data-video-id');
         Object.keys(currentState).forEach(key => {
           if (key.startsWith(videoId)) {
             keysToRemove.push(key);
             if (key === `${videoId}_number`) {
-              numbersToDelete.push(currentState[key]);
+              numbersToDelete.push(parseInt(currentState[key]));
             }
           }
         });
       });
 
-      // 削除されたNo.を保存（ローカル変数とストレージの両方）
-      deletedNumbers.push(...numbersToDelete);
+      // 削除されるナンバリングより大きい番号を持つ項目のナンバリングを-1する
+      const updates = {};
+      Object.entries(currentState)
+        .filter(([key]) => key.endsWith('_number'))
+        .forEach(([key, value]) => {
+          const currentNumber = parseInt(value);
+          const decrementCount = numbersToDelete.filter(num => num < currentNumber).length;
+          if (decrementCount > 0) {
+            updates[key] = currentNumber - decrementCount;
+          }
+        });
+
+      // ナンバリングの更新を保存
+      if (Object.keys(updates).length > 0) {
+        await new Promise(resolve => {
+          chrome.storage.local.set(updates, resolve);
+        });
+      }
+
+      // 削除されたNo.を保存（修正）
+      deletedNumbers.push(...numbersToDelete);  // 新しい削除番号を追加
       await new Promise(resolve => {
         chrome.storage.local.set({ deletedNumbers }, resolve);
       });
 
-      // 履歴に保存（削除されたNo.も含める）
+      // 履歴に保存
       const relevantState = keysToRemove.reduce((obj, key) => {
         obj[key] = currentState[key];
         return obj;
@@ -555,6 +586,12 @@ chrome.storage.local.get(null, (result) => {
 
       // 元に戻すボタンを表示
       undoButton.style.display = 'block';
+
+      // 削除完了のダイアログを表示
+      alert(`${selectedRows.length}件の評価を削除しました`);
+      
+      // ページをリロードして更新されたナンバリングを反映
+      location.reload();
     }
   });
 
@@ -735,14 +772,20 @@ chrome.storage.local.get(null, (result) => {
           if (key.includes('_active')) {
             const [videoId, type] = key.replace('_active', '').split('_');
             if (!videoData[videoId]) {
-              // 最初の動画かどうかを確認
-              const existingNumbers = Object.values(result)
-                .filter(v => typeof v === 'number')
-                .map(v => parseInt(v));
+              // 既存のナンバリングの最大値を取得
+              const existingNumbers = Object.entries(result)
+                .filter(([key]) => key.endsWith('_number'))
+                .map(([, value]) => parseInt(value))
+                .filter(num => !isNaN(num));  // 有効な数値のみ
+
+              // 最大値を取得（存在しない場合は0）
               const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
               
-              videoData[videoId] = {
-                like: false,
+              // 新規追加の場合は必ず最大値+1を割り当て
+              const newNumber = maxNumber + 1;
+              
+              videoData[videoId] = { 
+                like: false, 
                 'super-like': false,
                 title: result[`${videoId}_title`] || videoId,
                 views: result[`${videoId}_views`] || '不明',
@@ -751,13 +794,14 @@ chrome.storage.local.get(null, (result) => {
                 thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
                 user: result[`${videoId}_user`] || '不明',
                 addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
-                number: result[`${videoId}_number`] || maxNumber + 1
+                number: result[`${videoId}_number`] || newNumber
               };
-              
-              // No.が未設定の場合はストレージに保存
+
+              // 新規追加時は必ずナンバリングを保存
               if (!result[`${videoId}_number`]) {
                 chrome.storage.local.set({
-                  [`${videoId}_number`]: maxNumber + 1
+                  [`${videoId}_number`]: newNumber,
+                  [`${videoId}_addedAt`]: videoData[videoId].addedAt
                 });
               }
             }

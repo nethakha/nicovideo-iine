@@ -112,49 +112,29 @@ function createButton(text, className, videoId) {
   button.textContent = text;
   button.addEventListener('click', async () => {
     try {
-      // 保存されている情報を確認
+      // 現在の最大ナンバリングを取得
       const result = await new Promise((resolve) => {
-        chrome.storage.local.get([
-          `${videoId}_title`,
-          `${videoId}_views`,
-          `${videoId}_date`
-        ], resolve);
+        chrome.storage.local.get(null, resolve);
       });
 
-      // タイトル、再生数、投稿日時を確認
-      const title = result[`${videoId}_title`] || '';
-      const views = result[`${videoId}_views`] || '不明';
-      const date = result[`${videoId}_date`] || '不明';
+      // 既存のナンバリングの最大値を取得
+      const existingNumbers = Object.entries(result)
+        .filter(([key]) => key.endsWith('_number'))
+        .map(([, value]) => parseInt(value))
+        .filter(num => !isNaN(num));
 
-      // 評価できない条件をチェック（評価が削除された場合は除外）
-      if ((title.startsWith('sm') || views === '不明' || date === '不明') && 
-          Object.keys(result).length > 0) {  // 情報が存在する場合のみチェック
-        throw new Error('必要な情報が取得できません');
-      }
+      // 最大値を取得（存在しない場合は0）
+      const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
+      
+      // 新規ナンバリングを割り当て
+      const newNumber = maxNumber + 1;
 
-      // 現在の評価状態を確認（新しい評価を保存する前にチェック）
-      const wasRated = await new Promise(resolve => {
-        chrome.storage.local.get([
-          `${videoId}_hold_active`,
-          `${videoId}_like_active`,
-          `${videoId}_super-like_active`
-        ], result => {
-          resolve(Object.values(result).some(value => value === true));
-        });
-      });
-
-      // 他の評価をすべて削除
-      const keysToRemove = ['hold', 'like', 'super-like'].map(type => 
-        `${videoId}_${type}_active`
-      );
-      await new Promise((resolve) => {
-        chrome.storage.local.remove(keysToRemove, resolve);
-      });
-
-      // 新しい評価を保存
+      // 新しい評価を保存（ナンバリングも含める）
       await new Promise(resolve => {
         chrome.storage.local.set({
-          [`${videoId}_${className}_active`]: true
+          [`${videoId}_${className}_active`]: true,
+          [`${videoId}_number`]: newNumber,
+          [`${videoId}_addedAt`]: new Date().toISOString()
         }, () => {
           // 評価更新を通知
           chrome.runtime.sendMessage({ type: 'ratingUpdated' });
@@ -218,10 +198,7 @@ function createButton(text, className, videoId) {
       // 評価完了通知を表示
       const notification = document.createElement('div');
       notification.className = 'rating-notification';
-      if (wasRated) {
-        notification.classList.add('update');
-      }
-      notification.textContent = wasRated ? '評価を更新しました' : '評価しました';
+      notification.textContent = '評価しました';
       document.body.appendChild(notification);
 
       // アニメーション終了後に要素を削除
