@@ -1,5 +1,6 @@
 // ストレージから評価データを取得して表示
 chrome.storage.local.get(null, (result) => {
+  console.log(result);
   const videoData = {};
   let currentSort = {
     column: result.savedSortColumn || null,
@@ -866,4 +867,7 @@ chrome.storage.local.get(null, (result) => {
 
   // 初期表示時にソート状態を更新
   updateSortStatus();
+
+  console.log(result);
+
 }); 
