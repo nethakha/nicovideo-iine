@@ -527,6 +527,190 @@
       background: #ffe0b2;  /* ホバー時は少し濃い色に */
       transition: background 0.2s ease;
     }
+
+    /* 日付入力のスタイル */
+    .date-input {
+      padding: 8px 12px;
+      border: 2px solid #3498db;
+      border-radius: 4px;
+      font-size: 14px;
+      width: 140px;
+      transition: all 0.3s;
+      cursor: pointer;
+      background: white;
+    }
+
+    .date-input:hover {
+      border-color: #2980b9;
+    }
+
+    /* フィルターコンテナのスタイル */
+    .filters-container {
+      margin: 20px 0;
+      padding: 15px;
+      background: #f8f9fa;
+      border-radius: 8px;
+      border: 1px solid #e0e4e9;
+    }
+
+    .date-range {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .date-range label {
+      color: #2c3e50;
+      font-weight: bold;
+      font-size: 14px;
+    }
+
+    .reset-button {
+      padding: 6px 12px;
+      background: #95a5a6;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+
+    .reset-button:hover {
+      background: #7f8c8d;
+      transform: translateY(-1px);
+    }
+
+    .apply-button {
+      padding: 6px 12px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+
+    .apply-button:hover {
+      background: #2980b9;
+      transform: translateY(-1px);
+    }
+
+    /* カスタムカレンダーのスタイル */
+    .custom-calendar {
+      position: absolute;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+      padding: 12px;
+      z-index: 1000;
+      width: 280px;
+    }
+
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .calendar-header button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px 8px;
+      color: #3498db;
+      font-size: 0.9em;
+    }
+
+    .current-month {
+      font-weight: bold;
+      color: #2c3e50;
+    }
+
+    .weekdays {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      text-align: center;
+      font-weight: bold;
+      color: #7f8c8d;
+      font-size: 0.9em;
+      margin-bottom: 5px;
+    }
+
+    .days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 2px;
+    }
+
+    .day {
+      padding: 8px;
+      text-align: center;
+      cursor: pointer;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .day:hover {
+      background: #f5f9ff;
+    }
+
+    .day.selected {
+      background: #3498db;
+      color: white;
+    }
+
+    .day.inactive {
+      color: #ccc;
+      cursor: default;
+    }
+
+    .calendar-footer {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+    }
+
+    .calendar-apply {
+      padding: 6px 12px;
+      background: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.85em;
+      transition: all 0.2s;
+    }
+
+    .calendar-apply:hover {
+      background: #2980b9;
+      transform: translateY(-1px);
+    }
+
+    /* カスタムカレンダーのスタイル */
+    .date-selectors {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .year-select,
+    .month-select {
+      padding: 4px 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      background: white;
+    }
+
+    .year-select:hover,
+    .month-select:hover {
+      border-color: #3498db;
+    }
   </style>
 </head>
 <body>
@@ -554,6 +738,17 @@
         <button id="deleteAll" class="delete-all-button">全削除</button>
       </div>
     </div>
+
+    <div class="filters-container">
+      <div class="date-range">
+        <label>期間指定:</label>
+        <input type="text" id="startDate" class="date-input" value="2007-03-06" readonly>
+        <span>～</span>
+        <input type="text" id="endDate" class="date-input" readonly>
+        <button id="resetDate" class="reset-button">リセット</button>
+      </div>
+    </div>
+
     <div class="table">
       <div class="header">
         <div class="header-cell">サムネ</div>
@@ -570,5 +765,6 @@
     </div>
   </div>
   <script src="hello.js"></script>
+  <script src="calendar.js"></script>
 </body>
 </html> 

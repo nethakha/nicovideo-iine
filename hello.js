@@ -346,8 +346,95 @@ chrome.storage.local.get(null, (result) => {
   userSearch.addEventListener('input', filterVideos);
   tagSearch.addEventListener('input', filterVideos);
 
-  // 初期表示
-  displayVideos(Object.entries(videoData));
+  // 日付フィールドの初期化と処理
+  function initializeDateFields() {
+    const startDate = document.getElementById('startDate');
+    const endDate = document.getElementById('endDate');
+
+    // 保存された日付を復元
+    chrome.storage.local.get(['savedStartDate', 'savedEndDate'], (result) => {
+      if (result.savedStartDate) {
+        startDate.value = result.savedStartDate;
+      }
+      if (result.savedEndDate) {
+        endDate.value = result.savedEndDate;
+      } else {
+        // 終了日が保存されていない場合は今日の日付を設定
+        const today = new Date();
+        const year = today.getFullYear();
+        const month = String(today.getMonth() + 1).padStart(2, '0');
+        const day = String(today.getDate()).padStart(2, '0');
+        endDate.value = `${year}-${month}-${day}`;
+      }
+
+      // データを表示してからフィルターを適用
+      displayVideos(Object.entries(videoData));
+      filterByDate();
+    });
+
+    // 日付変更時のフィルター処理
+    function filterByDate() {
+      const rows = document.querySelectorAll('.row');
+      rows.forEach(row => {
+        const dateCell = row.querySelector('.upload-date');
+        const dateStr = dateCell.textContent;
+        const date = new Date(dateStr.replace(/\//g, '-'));
+        const start = startDate.value ? new Date(startDate.value) : null;
+        const end = endDate.value ? new Date(endDate.value) : null;
+
+        let showRow = true;
+        if (start) showRow = showRow && date >= start;
+        if (end) {
+          const endOfDay = new Date(end);
+          endOfDay.setHours(23, 59, 59, 999);
+          showRow = showRow && date <= endOfDay;
+        }
+
+        row.style.display = showRow ? '' : 'none';
+      });
+
+      // 日付を保存
+      chrome.storage.local.set({
+        savedStartDate: startDate.value,
+        savedEndDate: endDate.value
+      });
+    }
+
+    // イベントリスナーを追加
+    startDate.addEventListener('change', filterByDate);
+    endDate.addEventListener('change', filterByDate);
+
+    // リセットボタンの処理
+    const resetButton = document.getElementById('resetDate');
+    resetButton.addEventListener('click', () => {
+      // 開始日を2007年3月6日に設定
+      startDate.value = '2007-03-06';
+      
+      // 終了日を今日の日付に設定
+      const today = new Date();
+      const year = today.getFullYear();
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const day = String(today.getDate()).padStart(2, '0');
+      endDate.value = `${year}-${month}-${day}`;
+      
+      // フィルターを適用して保存
+      filterByDate();
+    });
+
+    // カスタムカレンダーを初期化
+    const startDateCalendar = new CustomCalendar(startDate, {
+      initialDate: new Date('2007-03-06'),
+      onSelect: filterByDate
+    });
+
+    const endDateCalendar = new CustomCalendar(endDate, {
+      initialDate: new Date(),
+      onSelect: filterByDate
+    });
+  }
+
+  // 初期化を実行
+  initializeDateFields();
 
   // 評価更新メッセージを受信したら更新
   chrome.runtime.onMessage.addListener((message) => {
