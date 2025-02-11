@@ -342,9 +342,8 @@ chrome.storage.local.get(null, (result) => {
       
       switch (column) {
         case 'No.':
-          // 保存されているNo.情報でソート
-          const numberA = a.number || Infinity;  // No.がない場合は最後尾に
-          const numberB = b.number || Infinity;
+          const numberA = parseInt(a.number) || Infinity;
+          const numberB = parseInt(b.number) || Infinity;
           comparison = numberA - numberB;
           break;
         case 'タイトル':
@@ -358,7 +357,7 @@ chrome.storage.local.get(null, (result) => {
           const viewsA = parseInt(a.views.replace(/[,万]/g, ''));
           const viewsB = parseInt(b.views.replace(/[,万]/g, ''));
 
-          // 「万」が含まれている場合は10000を掛ける
+          // "万"が含まれている場合は10000を掛ける
           const finalViewsA = a.views.includes('万') ? viewsA * 10000 : viewsA;
           const finalViewsB = b.views.includes('万') ? viewsB * 10000 : viewsB;
 
@@ -639,28 +638,29 @@ chrome.storage.local.get(null, (result) => {
       // 再生数でのフィルタリング
       let matchesViews = true;
       const viewsRanges = [
-        { value: 0, label: '50未満', threshold: 50 },
-        { value: 1, label: '100未満', threshold: 100 },
-        { value: 2, label: '500未満', threshold: 500 },
-        { value: 3, label: '1000未満', threshold: 1000 },
-        { value: 4, label: '3000未満', threshold: 3000 },
-        { value: 5, label: '5000未満', threshold: 5000 },
-        { value: 6, label: '1万未満', threshold: 10000 },
-        { value: 7, label: '5万未満', threshold: 50000 },
-        { value: 8, label: '10万未満', threshold: 100000 },
-        { value: 9, label: '25万未満', threshold: 250000 },
-        { value: 10, label: '50万未満', threshold: 500000 },
-        { value: 11, label: '100万未満', threshold: 1000000 },
-        { value: 12, label: 'すべて', threshold: Infinity }
+        { value: '0', label: '50未満', threshold: 50 },
+        { value: '1', label: '100未満', threshold: 100 },
+        { value: '2', label: '500未満', threshold: 500 },
+        { value: '3', label: '1000未満', threshold: 1000 },
+        { value: '4', label: '3000未満', threshold: 3000 },
+        { value: '5', label: '5000未満', threshold: 5000 },
+        { value: '6', label: '1万未満', threshold: 10000 },
+        { value: '7', label: '5万未満', threshold: 50000 },
+        { value: '8', label: '10万未満', threshold: 100000 },
+        { value: '9', label: '25万未満', threshold: 250000 },
+        { value: '10', label: '50万未満', threshold: 500000 },
+        { value: '11', label: '100万未満', threshold: 1000000 },
+        { value: '12', label: 'すべて', threshold: Infinity }
       ];
-      
+
       const selectedRange = viewsRanges[parseInt(viewsFilterValue)];
       document.getElementById('viewsLabel').textContent = selectedRange.label;
-      
-      if (selectedRange.value !== 7) {
-        const viewsText = viewsCell.textContent.replace(/,/g, '');
+
+      if (viewsFilterValue !== '12') {
+        const viewsText = viewsCell.textContent.replace(/[,万]/g, '');
         const views = parseInt(viewsText);
-        matchesViews = !isNaN(views) && views < selectedRange.threshold;
+        const actualViews = viewsText.includes('万') ? views * 10000 : views;
+        matchesViews = !isNaN(actualViews) && actualViews < selectedRange.threshold;
       }
 
       // 表示/非表示を設定
@@ -828,6 +828,7 @@ chrome.storage.local.get(null, (result) => {
     const sortedVideos = sortData(Object.entries(videoData), currentSort.column);
     displayVideos(sortedVideos);
   } else {
+    // 初期表示時はソートなしで表示
     displayVideos(Object.entries(videoData));
   }
 

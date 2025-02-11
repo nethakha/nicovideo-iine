@@ -145,7 +145,8 @@ function createButton(text, className, videoId) {
       // 動画情報を再取得して保存
       const saveVideoInfo = () => {
         const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
-        const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
+        const viewCountElement = Array.from(document.querySelectorAll('span'))
+        .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('再生'));
         const dateElement = Array.from(document.querySelectorAll('time[datetime]'))
           .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
         const tagArea = document.querySelector("[data-anchor-area=tags]");
