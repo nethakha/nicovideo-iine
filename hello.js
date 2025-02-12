@@ -842,8 +842,8 @@ chrome.storage.local.get(null, (result) => {
       sortStatus.textContent = `${currentSort.column}で${direction}ソート中`;
       clearSortButton.style.display = 'block';
     } else {
-      sortStatus.textContent = '';
-      clearSortButton.style.display = 'none';
+      sortStatus.textContent = 'ソートされていません'; // ソートされていない場合のメッセージ
+      clearSortButton.style.display = 'none'; // ソート解除ボタンを非表示
     }
   }
 
