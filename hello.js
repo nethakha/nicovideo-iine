@@ -79,6 +79,7 @@ chrome.storage.local.get(null, (result) => {
           tags: result[`${videoId}_tags`] || '不明',
           thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
           user: result[`${videoId}_user`] || '不明',
+          userLink: result[`${videoId}_userLink`] || '#',
           addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
           number: result[`${videoId}_number`] || newNumber
         };
@@ -190,7 +191,10 @@ chrome.storage.local.get(null, (result) => {
       // ユーザー名のリンクを設定
       const userName = data.user || '不明';
       const userLink = data.userLink || '#';
-      userCell.innerHTML = `<a href="${userLink}" target="_blank">${userName}</a>`;
+      userCell.innerHTML = `<a href="https://www.nicovideo.jp${userLink}" target="_blank">${userName}</a>`;
+
+      console.log(data.userLink, userLink);
+    
 
       // 評価のセル
       ratingCell.className += ' rating-cell';
@@ -797,6 +801,7 @@ chrome.storage.local.get(null, (result) => {
                 tags: result[`${videoId}_tags`] || '不明',
                 thumbnail: result[`${videoId}_thumbnail`] || 'https://placehold.jp/24/cccccc/ffffff/320x180.png?text=No_Image',
                 user: result[`${videoId}_user`] || '不明',
+                userLink: result[`${videoId}_userLink`] || '#',
                 addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
                 number: result[`${videoId}_number`] || newNumber
               };

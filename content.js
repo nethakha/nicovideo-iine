@@ -66,9 +66,16 @@ function createLikeButtons() {
       .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
     const tagArea = document.querySelector("[data-anchor-area=tags]");
     const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
-    
-    const userLink = location.href; // hrefを取得
-    const userName = document.querySelector('[data-anchor-area="video_detail"] a')?.textContent.trim() || '不明';
+
+    // 二番目のvideo_detail要素を取得
+    const userElements = document.querySelectorAll('[data-anchor-area="video_detail"]');
+    const userElement = userElements[1]; // 二番目の要素を取得
+    const userLink = userElement ? userElement.getAttribute('href') : '#'; // hrefを取得
+
+    // ユーザー名を取得
+    const userName = userElement ? userElement.querySelector('div > img')?.getAttribute('alt') || '不明' : '不明';
+
+    console.log('User Link:', userLink); // ここでuserLinkを確認
 
     if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement && userElement) {
       const videoTitle = titleElement.textContent.trim();
@@ -80,6 +87,7 @@ function createLikeButtons() {
         .join(', ');
       const thumbnail = thumbnailElement.href;
 
+      // localStorageに保存
       chrome.storage.local.set({
         [`${videoId}_title`]: videoTitle,
         [`${videoId}_views`]: viewCount,
