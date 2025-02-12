@@ -141,9 +141,7 @@ function createButton(text, className, videoId) {
 
       // ボタンを目立たせる
       button.classList.add('active'); // ボタンにアクティブクラスを追加
-      setTimeout(() => {
-        button.classList.remove('active'); // 1.5秒後にアクティブクラスを削除
-      }, 1500);
+      // ここではアニメーションを解除しない
 
       // 評価完了通知を表示
       const notification = document.createElement('div');
