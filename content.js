@@ -58,7 +58,6 @@ function createLikeButtons() {
   // ボタンをbodyに直接追加
   document.body.appendChild(buttonsContainer);
 
-  // タイトル、再生数、投稿日時、タグを取得して保存
   const saveVideoInfo = () => {
     const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
     const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
@@ -77,7 +76,7 @@ function createLikeButtons() {
 
     console.log('User Link:', userLink); // ここでuserLinkを確認
 
-    if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement && userElement) {
+    if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement) {
       const videoTitle = titleElement.textContent.trim();
       const viewCount = viewCountElement.textContent.trim();
       const uploadDate = dateElement.textContent.trim();
