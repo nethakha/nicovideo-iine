@@ -66,7 +66,9 @@ function createLikeButtons() {
       .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
     const tagArea = document.querySelector("[data-anchor-area=tags]");
     const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
-    const userElement = document.querySelector("[data-anchor-area=video_information]:nth-child(2)");
+    
+    const userLink = location.href; // hrefを取得
+    const userName = document.querySelector('[data-anchor-area="video_detail"] a')?.textContent.trim() || '不明';
 
     if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement && userElement) {
       const videoTitle = titleElement.textContent.trim();
@@ -77,17 +79,6 @@ function createLikeButtons() {
         .filter(it => !!it)
         .join(', ');
       const thumbnail = thumbnailElement.href;
-      
-      // ユーザー名を取得
-      let userName = '不明';
-      try {
-        const userLink = userElement?.querySelector('a');
-        if (userLink && userLink.textContent) {
-          userName = userLink.textContent.trim();
-        }
-      } catch (error) {
-        console.error('ユーザー名の取得に失敗:', error);
-      }
 
       chrome.storage.local.set({
         [`${videoId}_title`]: videoTitle,
@@ -95,7 +86,8 @@ function createLikeButtons() {
         [`${videoId}_date`]: uploadDate,
         [`${videoId}_tags`]: tags,
         [`${videoId}_thumbnail`]: thumbnail,
-        [`${videoId}_user`]: userName
+        [`${videoId}_user`]: userName,
+        [`${videoId}_userLink`]: userLink // userLinkを保存
       });
     } else {
       setTimeout(saveVideoInfo, 1500);

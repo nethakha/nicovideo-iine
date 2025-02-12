@@ -189,7 +189,8 @@ chrome.storage.local.get(null, (result) => {
 
       // ユーザー名のリンクを設定
       const userName = data.user || '不明';
-      userCell.innerHTML = `<a href="https://www.nicovideo.jp/user/${encodeURIComponent(userName)}" target="_blank">${userName}</a>`;
+      const userLink = data.userLink || '#';
+      userCell.innerHTML = `<a href="${userLink}" target="_blank">${userName}</a>`;
 
       // 評価のセル
       ratingCell.className += ' rating-cell';
@@ -333,6 +334,8 @@ chrome.storage.local.get(null, (result) => {
       row.appendChild(ratingCell);
       videoList.appendChild(row);
     });
+
+    console.log(data); // ここでdataオブジェクトを確認
   }
 
   // ソート関数
