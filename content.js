@@ -40,7 +40,7 @@ function createLikeButtons() {
   // 評価済みかどうかを確認してからボタングループを追加
   chrome.storage.local.get(null, (result) => {
     const hasRating = ['hold', 'like', 'super-like'].some(type => 
-      result[`${videoId}_${type}_active`]
+      result[`${videoId}_evaluation`] === type
     );
 
     if (hasRating) {
@@ -48,173 +48,123 @@ function createLikeButtons() {
       const ratedBadge = document.createElement('div');
       ratedBadge.className = 'rated-badge';
       ratedBadge.textContent = '評価済み';
-      // まずバッジを追加
       buttonsContainer.appendChild(ratedBadge);
     }
-    // その後でボタングループを追加
     buttonsContainer.appendChild(buttonsGroup);
   });
 
   // ボタンをbodyに直接追加
   document.body.appendChild(buttonsContainer);
 
-  const saveVideoInfo = () => {
-    const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
-    const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
-    const dateElement = Array.from(document.querySelectorAll('time[datetime]'))
-      .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
-    const tagArea = document.querySelector("[data-anchor-area=tags]");
-    const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
-
-    // 二番目のvideo_detail要素を取得
-    const userElements = document.querySelectorAll('[data-anchor-area="video_detail"]');
-    const userElement = userElements[1]; // 二番目の要素を取得
-    const userLink = userElement ? userElement.getAttribute('href') : '#'; // hrefを取得
-
-    // ユーザー名を取得
-    const userName = userElement ? userElement.querySelector('div > img')?.getAttribute('alt') || '不明' : '不明';
-
-    console.log('User Link:', userLink); // ここでuserLinkを確認
-
-    if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement) {
-      const videoTitle = titleElement.textContent.trim();
-      const viewCount = viewCountElement.textContent.trim();
-      const uploadDate = dateElement.textContent.trim();
-      const tags = Array.from(tagArea.parentElement.parentElement.querySelectorAll("a"))
-        .map(it => it.textContent)
-        .filter(it => !!it)
-        .join(', ');
-      const thumbnail = thumbnailElement.href;
-
-      // localStorageに保存
-      chrome.storage.local.set({
-        [`${videoId}_title`]: videoTitle,
-        [`${videoId}_views`]: viewCount,
-        [`${videoId}_date`]: uploadDate,
-        [`${videoId}_tags`]: tags,
-        [`${videoId}_thumbnail`]: thumbnail,
-        [`${videoId}_user`]: userName,
-        [`${videoId}_userLink`]: userLink // userLinkを保存
-      });
-    } else {
-      setTimeout(saveVideoInfo, 1500);
-    }
-  };
-
   // 情報保存を実行
-  saveVideoInfo();
+  saveVideoInfo(videoId);
+}
+
+function saveVideoInfo(videoId) {
+  const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
+  const viewCountElement = document.querySelector("[aria-label=nicovideo-content] h1 + div > time + div > svg + span");
+  const dateElement = Array.from(document.querySelectorAll('time[datetime]'))
+    .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
+  const tagArea = document.querySelector("[data-anchor-area=tags]");
+  const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
+
+  // 二番目のvideo_detail要素を取得
+  const userElements = document.querySelectorAll('[data-anchor-area="video_detail"]');
+  const userElement = userElements[1]; // 二番目の要素を取得
+  const userLink = userElement ? userElement.getAttribute('href') : '#'; // hrefを取得
+
+  // ユーザー名を取得
+  const userName = userElement ? userElement.querySelector('div > img')?.getAttribute('alt') || '不明' : '不明';
+
+  if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement) {
+    const videoTitle = titleElement.textContent.trim();
+    const viewCount = viewCountElement.textContent.trim();
+    const uploadDate = dateElement.textContent.trim();
+    const tags = Array.from(tagArea.parentElement.parentElement.querySelectorAll("a"))
+      .map(it => it.textContent)
+      .filter(it => !!it)
+      .join(', ');
+    const thumbnail = thumbnailElement.href;
+
+    // localStorageに保存
+    chrome.storage.local.set({
+      [`${videoId}_title`]: videoTitle,
+      [`${videoId}_views`]: viewCount,
+      [`${videoId}_date`]: uploadDate,
+      [`${videoId}_tags`]: tags,
+      [`${videoId}_thumbnail`]: thumbnail,
+      [`${videoId}_user`]: userName,
+      [`${videoId}_userLink`]: userLink // userLinkを保存
+    });
+  } else {
+    console.error('必要な要素が見つかりませんでした。'); // エラーメッセージを追加
+    setTimeout(() => saveVideoInfo(videoId), 1500); // videoIdを渡す
+  }
 }
 
 function createButton(text, className, videoId) {
   const button = document.createElement('button');
   button.className = `like-button ${className}`;
   button.textContent = text;
+
   button.addEventListener('click', async () => {
     try {
-      // 現在の最大ナンバリングを取得
-      const result = await new Promise((resolve) => {
+      // 既存の評価を取得
+      const result = await new Promise(resolve => {
         chrome.storage.local.get(null, resolve);
       });
 
-      // 既存のナンバリングの最大値を取得
-      const existingNumbers = Object.entries(result)
-        .filter(([key]) => key.endsWith('_number'))
-        .map(([, value]) => parseInt(value))
-        .filter(num => !isNaN(num));
-
-      // 最大値を取得（存在しない場合は0）
-      const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-      
-      // 新規ナンバリングを割り当て
-      const newNumber = maxNumber + 1;
-
-      // 新しい評価を保存（ナンバリングも含める）
+      // 新しい評価を保存
+      const isNewRating = !result[`${videoId}_evaluation`]; // 新規評価かどうかを判定
       await new Promise(resolve => {
         chrome.storage.local.set({
-          [`${videoId}_${className}_active`]: true,
-          [`${videoId}_number`]: newNumber,
+          [`${videoId}_evaluation`]: className, // 評価の保存形式を変更
           [`${videoId}_addedAt`]: new Date().toISOString()
         }, () => {
           // 評価更新を通知
-          chrome.runtime.sendMessage({ type: 'ratingUpdated' });
+          chrome.runtime.sendMessage({ action: 'updateRating', videoId, type: className });
           resolve();
         });
       });
 
       // 動画情報を再取得して保存
-      const saveVideoInfo = () => {
-        const titleElement = document.querySelector("[aria-label=nicovideo-content] h1");
-        const viewCountElement = Array.from(document.querySelectorAll('span'))
-        .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('再生'));
-        const dateElement = Array.from(document.querySelectorAll('time[datetime]'))
-          .find(el => el.closest('dd')?.previousElementSibling?.textContent.includes('投稿日時'));
-        const tagArea = document.querySelector("[data-anchor-area=tags]");
-        const thumbnailElement = document.querySelector('link[rel="preload"][as="image"]');
-        const userElement = document.querySelector('[data-anchor-area="video_information"]:nth-child(2)');
+      saveVideoInfo(videoId); // videoIdを渡す
 
-        if (titleElement && viewCountElement && dateElement && tagArea && thumbnailElement && userElement) {
-          const videoTitle = titleElement.textContent.trim();
-          const viewCount = viewCountElement.textContent.trim();
-          const uploadDate = dateElement.textContent.trim();
-          const tags = Array.from(tagArea.parentElement.parentElement.querySelectorAll("a"))
-            .map(it => it.textContent)
-            .filter(it => !!it)
-            .join(', ');
-          const thumbnail = thumbnailElement.href;
-          
-          // ユーザー名を取得
-          let userName = userElement.textContent.trim();
-
-          chrome.storage.local.set({
-            [`${videoId}_title`]: videoTitle,
-            [`${videoId}_views`]: viewCount,
-            [`${videoId}_date`]: uploadDate,
-            [`${videoId}_tags`]: tags,
-            [`${videoId}_thumbnail`]: thumbnail,
-            [`${videoId}_user`]: userName
-          });
-        }
-      };
-
-      // 情報を更新
-      saveVideoInfo();
-
-      // ボタンの状態を更新
-      document.querySelectorAll('.like-button').forEach(btn => {
-        btn.classList.remove('active');
-      });
-      button.classList.add('active');
-
-      // 評価済みバッジがまだない場合は追加
-      if (!document.querySelector('.rated-badge')) {
+      // 評価済みバッジを追加（まだ存在しない場合）
+      const buttonsContainer = document.querySelector('.like-buttons');
+      if (buttonsContainer && !buttonsContainer.querySelector('.rated-badge')) {
         const ratedBadge = document.createElement('div');
         ratedBadge.className = 'rated-badge';
         ratedBadge.textContent = '評価済み';
-        const buttonsContainer = document.querySelector('.like-buttons');
-        const buttonsGroup = document.querySelector('.buttons-group');
-        buttonsContainer.insertBefore(ratedBadge, buttonsGroup);
+        buttonsContainer.insertBefore(ratedBadge, buttonsContainer.firstChild);
       }
+
+      // ボタンを目立たせる
+      button.classList.add('active'); // ボタンにアクティブクラスを追加
+      setTimeout(() => {
+        button.classList.remove('active'); // 1.5秒後にアクティブクラスを削除
+      }, 1500);
 
       // 評価完了通知を表示
       const notification = document.createElement('div');
       notification.className = 'rating-notification';
-      notification.textContent = '評価しました';
+      notification.textContent = isNewRating ? '評価しました' : '評価を更新しました'; // 新規評価か更新かでメッセージを変更
       document.body.appendChild(notification);
 
       // アニメーション終了後に要素を削除
       setTimeout(() => {
         notification.remove();
-      }, 1500);
+      }, 1500); // 1.5秒後に通知を消す
 
     } catch (error) {
+      console.error('評価エラー:', error); // エラーの詳細をコンソールに出力
       alert('評価に失敗しました。ページをリロードして再度評価してください。');
-      console.error('評価エラー:', error);
     }
   });
 
   // 現在の状態を確認
-  chrome.storage.local.get(`${videoId}_${className}_active`, (result) => {
-    if (result[`${videoId}_${className}_active`]) {
+  chrome.storage.local.get(`${videoId}_evaluation`, (result) => {
+    if (result[`${videoId}_evaluation`] === className) {
       button.classList.add('active');
     }
   });

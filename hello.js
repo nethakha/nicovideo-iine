@@ -55,24 +55,20 @@ chrome.storage.local.get(null, (result) => {
 
   // ストレージデータを整理
   Object.entries(result).forEach(([key, value]) => {
-    if (key.includes('_active')) {
-      const [videoId, type] = key.replace('_active', '').split('_');
+    if (key.includes('_evaluation')) { // _evaluationを含むキーを検索
+      const videoId = key.replace('_evaluation', '');
       if (!videoData[videoId]) {
         // 既存のナンバリングの最大値を取得
         const existingNumbers = Object.entries(result)
           .filter(([key]) => key.endsWith('_number'))
           .map(([, value]) => parseInt(value))
-          .filter(num => !isNaN(num));  // 有効な数値のみ
+          .filter(num => !isNaN(num));
 
-        // 最大値を取得（存在しない場合は0）
         const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-        
-        // 新規追加の場合は必ず最大値+1を割り当て
         const newNumber = maxNumber + 1;
         
-        videoData[videoId] = { 
-          like: false, 
-          'super-like': false,
+        videoData[videoId] = {
+          evaluation: value, // 評価値を保存
           title: result[`${videoId}_title`] || videoId,
           views: result[`${videoId}_views`] || '不明',
           date: result[`${videoId}_date`] || '不明',
@@ -83,23 +79,6 @@ chrome.storage.local.get(null, (result) => {
           addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
           number: result[`${videoId}_number`] || newNumber
         };
-
-        // 新規追加時は必ずナンバリングを保存
-        if (!result[`${videoId}_number`]) {
-          chrome.storage.local.set({
-            [`${videoId}_number`]: newNumber,
-            [`${videoId}_addedAt`]: videoData[videoId].addedAt
-          });
-        }
-      }
-      if (value) {
-        videoData[videoId][type] = true;
-        // 追加日時のみ未設定の場合は設定
-        if (!result[`${videoId}_addedAt`]) {
-          chrome.storage.local.set({
-            [`${videoId}_addedAt`]: new Date().toISOString()
-          });
-        }
       }
     }
   });
@@ -115,7 +94,7 @@ chrome.storage.local.get(null, (result) => {
       // 2. タイトルがsm～から始まる
       // 3. 投稿日時が不明
       // 4. 再生数が不明
-      if (!data.like && !data['super-like'] && !data.hold ||
+      if (!data.evaluation ||
           data.title.startsWith('sm') ||
           data.date === '不明' ||
           data.views === '不明') {
@@ -202,13 +181,13 @@ chrome.storage.local.get(null, (result) => {
       // 評価表示用の要素
       const ratingDisplay = document.createElement('div');
       ratingDisplay.className = 'rating-display';
-      if (data['super-like']) {
+      if (data.evaluation === 'super-like') {
         ratingDisplay.textContent = '大好き';
         ratingDisplay.className += ' rating-superlike';
-      } else if (data.like) {
+      } else if (data.evaluation === 'like') {
         ratingDisplay.textContent = '好き';
         ratingDisplay.className += ' rating-like';
-      } else if (data.hold) {
+      } else if (data.evaluation === 'hold') {
         ratingDisplay.textContent = '保留';
         ratingDisplay.className += ' rating-hold';
       }
@@ -273,17 +252,11 @@ chrome.storage.local.get(null, (result) => {
 
             // データを更新
             if (item.class === 'super-like') {
-              data['super-like'] = true;
-              data.like = false;
-              data.hold = false;
+              data.evaluation = 'super-like';
             } else if (item.class === 'like') {
-              data['super-like'] = false;
-              data.like = true;
-              data.hold = false;
+              data.evaluation = 'like';
             } else if (item.class === 'hold') {
-              data['super-like'] = false;
-              data.like = false;
-              data.hold = true;
+              data.evaluation = 'hold';
             }
             
             // No.が未設定の場合は新しい番号を割り当て
@@ -385,9 +358,9 @@ chrome.storage.local.get(null, (result) => {
           };
           // 各動画の評価値を取得
           function getRatingValue(data) {
-            if (data['super-like']) return 'super-like';  // 大好き
-            if (data.like) return 'like';                 // 好き
-            if (data.hold) return 'hold';                 // 保留
+            if (data.evaluation === 'super-like') return 'super-like';  // 大好き
+            if (data.evaluation === 'like') return 'like';                 // 好き
+            if (data.evaluation === 'hold') return 'hold';                 // 保留
             return 'none';                                // 評価なし
           }
 
@@ -777,24 +750,20 @@ chrome.storage.local.get(null, (result) => {
       chrome.storage.local.get(null, (result) => {
         // videoDataを更新
         Object.entries(result).forEach(([key, value]) => {
-          if (key.includes('_active')) {
-            const [videoId, type] = key.replace('_active', '').split('_');
+          if (key.includes('_evaluation')) { // _evaluationを含むキーを検索
+            const videoId = key.replace('_evaluation', '');
             if (!videoData[videoId]) {
               // 既存のナンバリングの最大値を取得
               const existingNumbers = Object.entries(result)
                 .filter(([key]) => key.endsWith('_number'))
                 .map(([, value]) => parseInt(value))
-                .filter(num => !isNaN(num));  // 有効な数値のみ
+                .filter(num => !isNaN(num));
 
-              // 最大値を取得（存在しない場合は0）
               const maxNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) : 0;
-              
-              // 新規追加の場合は必ず最大値+1を割り当て
               const newNumber = maxNumber + 1;
               
-              videoData[videoId] = { 
-                like: false, 
-                'super-like': false,
+              videoData[videoId] = {
+                evaluation: value, // 評価値を保存
                 title: result[`${videoId}_title`] || videoId,
                 views: result[`${videoId}_views`] || '不明',
                 date: result[`${videoId}_date`] || '不明',
@@ -805,17 +774,6 @@ chrome.storage.local.get(null, (result) => {
                 addedAt: result[`${videoId}_addedAt`] || new Date().toISOString(),
                 number: result[`${videoId}_number`] || newNumber
               };
-
-              // 新規追加時は必ずナンバリングを保存
-              if (!result[`${videoId}_number`]) {
-                chrome.storage.local.set({
-                  [`${videoId}_number`]: newNumber,
-                  [`${videoId}_addedAt`]: videoData[videoId].addedAt
-                });
-              }
-            }
-            if (value) {
-              videoData[videoId][type] = true;
             }
           }
         });
